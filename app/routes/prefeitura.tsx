@@ -4,6 +4,7 @@ import { BarList, Card, Page, SourceNote, Stat, Stats, YearTabs } from "~/compon
 import { mayors, payeeTotals, payeeYears, pncpTop, perDiemTop, topPayees } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, int, isCnpj, OFFICE_LABEL, titleCase } from "~/lib/format";
 import type { Route } from "./+types/prefeitura";
+import { ds, src } from "~/lib/sources";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   return [{ title: `Prefeitura de Florianópolis: quem recebeu em ${data?.year ?? ""} — Verba SC` }];
@@ -58,7 +59,7 @@ export default function Prefeitura({ loaderData }: Route.ComponentProps) {
         <>
           <YearTabs years={years} current={year} />
           <Stats>
-            <Stat label={`Pago em ${year}`} value={brlCompact(totals?.paid)} note="empenhos emitidos no ano" />
+            <Stat label={`Pago em ${year}`} value={brlCompact(totals?.paid)} note="empenhos emitidos no ano" src={src.pmf(year)} />
             <Stat label="Empenhado (líquido)" value={brlCompact(totals?.committed)} />
             <Stat label="Favorecidos" value={int(totals?.payees)} />
             <Stat label="Maior favorecido" value={brlCompact(payees[0]?.paid_cents)} note={titleCase(payees[0]?.name)} />
@@ -66,7 +67,7 @@ export default function Prefeitura({ loaderData }: Route.ComponentProps) {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Card title={`Maiores favorecidos · ${year}`} subtitle="Valor pago dos empenhos emitidos no ano">
+              <Card title={`Maiores favorecidos · ${year}`} subtitle="Valor pago dos empenhos emitidos no ano" src={src.pmf(year)}>
                 <BarList
                   items={payees.map((p) => ({
                     key: p.doc,
@@ -78,7 +79,7 @@ export default function Prefeitura({ loaderData }: Route.ComponentProps) {
                 />
               </Card>
             </div>
-            <Card title={`Diárias · ${year}`} subtitle="Agentes públicos com mais diárias pagas">
+            <Card title={`Diárias · ${year}`} subtitle="Agentes públicos com mais diárias pagas" src={src.pmfDiarias(year)}>
               <div className="table-wrap -mx-4 sm:-mx-5">
                 <table className="data">
                   <tbody>
@@ -100,7 +101,7 @@ export default function Prefeitura({ loaderData }: Route.ComponentProps) {
             </Card>
           </div>
 
-          <Card title={`Maiores contratos publicados no PNCP · ${year}`} subtitle="Valor global do contrato; o PNCP cobre só parte das contratações do município">
+          <Card title={`Maiores contratos publicados no PNCP · ${year}`} subtitle="Valor global do contrato; o PNCP cobre só parte das contratações do município" src={src.pncp(year)}>
             <div className="table-wrap -mx-4 sm:-mx-5">
               <table className="data">
                 <thead>

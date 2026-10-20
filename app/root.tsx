@@ -1,5 +1,4 @@
 import {
-  Form,
   isRouteErrorResponse,
   Links,
   Meta,
@@ -10,6 +9,8 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { AnalysisProvider } from "./components/analysis";
+import { Header } from "./components/header";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -22,16 +23,6 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-const NAV = [
-  { to: "/governo", label: "Governo" },
-  { to: "/deputados", label: "ALESC" },
-  { to: "/congresso", label: "Congresso" },
-  { to: "/emendas", label: "Emendas" },
-  { to: "/vereadores", label: "Vereadores" },
-  { to: "/prefeitura", label: "Prefeitura" },
-  { to: "/sinais", label: "Sinais" },
-  { to: "/fontes", label: "Fontes" },
-];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -39,49 +30,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta property="og:site_name" content="Verba SC" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="pt_BR" />
+        <meta name="theme-color" content="#2a78d6" />
         <Meta />
         <Links />
       </head>
       <body className="min-h-screen font-sans antialiased">
-        <header className="border-b border-line bg-surface">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-            <NavLink to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-xs font-bold text-white">R$</span>
-              Verba SC
-            </NavLink>
-            <nav className="-mx-1 flex flex-1 flex-wrap gap-1 text-sm">
-              {NAV.map((n) => (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  className={({ isActive }) =>
-                    `rounded-md px-2.5 py-1.5 ${isActive ? "bg-surface-2 font-medium text-ink" : "text-ink-2 hover:text-ink"}`
-                  }
-                >
-                  {n.label}
-                </NavLink>
-              ))}
-            </nav>
-            <Form action="/busca" className="w-full sm:w-64">
-              <input
-                name="q"
-                type="search"
-                placeholder="Buscar político, empresa ou CNPJ"
-                aria-label="Buscar"
-                className="w-full rounded-md border border-line bg-bg px-3 py-1.5 text-sm outline-none placeholder:text-ink-3 focus:border-accent"
-              />
-            </Form>
-          </div>
-        </header>
-        {children}
+        <AnalysisProvider>
+          <Header />
+          {children}
+        </AnalysisProvider>
         <footer className="border-t border-line bg-surface">
           <div className="mx-auto max-w-6xl space-y-2 px-4 py-6 text-sm text-ink-3 sm:px-6">
             <p>
-              Dados públicos da ALESC, da Prefeitura e da Câmara de Florianópolis (portal e-Publica), do PNCP e do TSE. Os
-              sinais são indícios para verificação, não acusações.{" "}
+              Dados públicos do Governo de SC, da ALESC, da Câmara dos Deputados, do Senado, do Portal da Transparência (CGU),
+              da Prefeitura e da Câmara de Florianópolis, do PNCP e do TSE. Os sinais são indícios para verificação, não
+              acusações.{" "}
               <NavLink to="/sobre" className="link">
                 Metodologia e limitações
-              </NavLink>
+              </NavLink>{" "}
+              ·{" "}
+              <a className="link" href="https://github.com/lucaspfeliciano/verba-sc" rel="noreferrer">
+                Código-fonte
+              </a>
               .
             </p>
             <p>Projeto independente, sem vínculo com os órgãos citados. Inspirado no EloSys.</p>
@@ -113,6 +86,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <h1 className="text-2xl font-semibold">{message}</h1>
       <p className="mt-2 text-ink-2">{details}</p>
+      <p className="mt-6 flex flex-wrap gap-4 text-sm">
+        <NavLink to="/" className="link">
+          Ir para o início
+        </NavLink>
+        <NavLink to="/busca" className="link">
+          Buscar político ou empresa
+        </NavLink>
+      </p>
       {stack && (
         <pre className="mt-4 overflow-x-auto rounded-lg bg-surface-2 p-4 text-xs">
           <code>{stack}</code>

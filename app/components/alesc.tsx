@@ -4,6 +4,7 @@ import type { alescAccountDetail, gabinetePayments } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, int, titleCase } from "~/lib/format";
 import { GabinetePayments } from "./recipients";
 import { BarList, Card, Columns, SourceNote, YearTabs } from "./ui";
+import { ds, src } from "~/lib/sources";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof alescAccountDetail>>>;
 
@@ -19,7 +20,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
   });
   return (
     <div className="space-y-6">
-      <Card title="Verba de gabinete na ALESC, por ano" subtitle="Total pago pela Assembleia com a cota do gabinete">
+      <Card title="Verba de gabinete na ALESC, por ano" subtitle="Total pago pela Assembleia com a cota do gabinete" src={ds("alesc", "gabinetes")}>
         <Columns items={d.yearly.map((y) => ({ key: String(y.year), label: String(y.year).slice(2), cents: y.cents }))} />
         <div className="mt-4">
           <YearTabs years={d.yearly.map((y) => y.year).reverse()} current={d.year} />
@@ -27,7 +28,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={`Por tipo de verba · ${d.year}`} subtitle={`Total no ano: ${brl(yearTotal)}`}>
+        <Card title={`Por tipo de verba · ${d.year}`} subtitle={`Total no ano: ${brl(yearTotal)}`} src={src.alesc(d.year)}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -57,7 +58,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
             </table>
           </div>
         </Card>
-        <Card title={`Mês a mês · ${d.year}`} subtitle="Pela data de referência do lançamento">
+        <Card title={`Mês a mês · ${d.year}`} subtitle="Pela data de referência do lançamento" src={src.alesc(d.year)}>
           <Columns items={monthly} />
           <div className="table-wrap mt-4 -mx-4 sm:-mx-5">
             <table className="data">
@@ -80,6 +81,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
         <Card
           title={`Quem a ALESC pagou por este gabinete · ${d.year}`}
           subtitle="Pagamentos a credores em que a ALESC indica este deputado como referência: o destinatário real de aluguéis, combustível, veículos e reembolsos"
+          src={src.alescPay(d.year)}
         >
           <GabinetePayments year={d.year} rows={payments} />
         </Card>
@@ -88,6 +90,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
       <Card
         title={`Favorecidos declarados pelo gabinete · ${d.year}`}
         subtitle="Nomes informados no CSV de gabinetes. O CNPJ aparece quando o mesmo nome consta, com um único CNPJ, nos pagamentos a credores."
+        src={[src.alesc(d.year), src.alescPay(d.year)]}
       >
         <BarList
           items={d.payees.map((p) => ({
@@ -101,7 +104,7 @@ export function AlescSection({ d, payments }: { d: Detail; payments?: Payments }
         />
       </Card>
 
-      <Card title={`Maiores lançamentos · ${d.year}`}>
+      <Card title={`Maiores lançamentos · ${d.year}`} src={src.alesc(d.year)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>

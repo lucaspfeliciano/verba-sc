@@ -5,6 +5,7 @@ import { BarList, Card, Page, SourceNote, Stat, Stats } from "~/components/ui";
 import { fedCategories, fedRanking, fedYears, type House } from "~/lib/db.server";
 import { brl, brlCompact, fedCategory, HOUSE_LABEL, int } from "~/lib/format";
 import type { Route } from "./+types/congresso";
+import { ds, src } from "~/lib/sources";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   const who = data?.house === "senado" ? "senadores" : "deputados federais";
@@ -54,20 +55,20 @@ export default function Congresso({ loaderData }: Route.ComponentProps) {
         <p className="text-ink-3">Ainda não há dados coletados.</p>
       ) : (
         <>
-          <nav className="flex flex-wrap gap-1.5" aria-label="Ano">
+          <nav className="scroll-strip -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Ano">
             {years.map((y) => (
               <Link
                 key={y}
                 to={`?casa=${house}&ano=${y}`}
                 preventScrollReset
-                className={`num rounded-md border px-2.5 py-1 text-sm ${y === year ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-2 hover:border-ink-3"}`}
+                className={`num shrink-0 rounded-md border px-2.5 py-1 text-sm ${y === year ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-2 hover:border-ink-3"}`}
               >
                 {y}
               </Link>
             ))}
           </nav>
           <Stats>
-            <Stat label={`Total da bancada em ${year}`} value={brlCompact(total)} note={`${int(ranking.length)} parlamentares com gastos`} />
+            <Stat label={`Total da bancada em ${year}`} value={brlCompact(total)} note={`${int(ranking.length)} parlamentares com gastos`} src={src.fed(house, year)} />
             <Stat label="Média por parlamentar" value={brlCompact(ranking.length ? total / ranking.length : 0)} />
             <Stat label="Maior gasto" value={brlCompact(ranking[0]?.cents)} note={ranking[0]?.name} />
             <Stat label="Lançamentos" value={int(ranking.reduce((s, r) => s + r.n, 0))} />
@@ -75,7 +76,7 @@ export default function Congresso({ loaderData }: Route.ComponentProps) {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Card title={`Ranking · ${year}`} subtitle="Clique no nome para ver fornecedores, notas fiscais e a campanha">
+              <Card title={`Ranking · ${year}`} subtitle="Clique no nome para ver fornecedores, notas fiscais e a campanha" src={src.fed(house, year)}>
                 <div className="table-wrap -mx-4 sm:-mx-5">
                   <table className="data">
                     <thead>
@@ -123,7 +124,7 @@ export default function Congresso({ loaderData }: Route.ComponentProps) {
                 </div>
               </Card>
             </div>
-            <Card title="Por categoria" subtitle={`Soma da bancada de SC em ${year}`}>
+            <Card title="Por categoria" subtitle={`Soma da bancada de SC em ${year}`} src={src.fed(house, year)}>
               <BarList
                 items={categories.map((c) => ({
                   key: c.category,

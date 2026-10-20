@@ -4,6 +4,7 @@ import { BarList, Card, Page, SourceNote, Stat, Stats, YearTabs } from "~/compon
 import { governors, stateDirectPayments, stateFocusDetail, stateOverview, stateYears } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, int, isCnpj, OFFICE_LABEL, titleCase } from "~/lib/format";
 import type { Route } from "./+types/governo";
+import { ds, src } from "~/lib/sources";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   return [{ title: `Governo de Santa Catarina: despesas de ${data?.year ?? ""} — Verba SC` }];
@@ -75,7 +76,7 @@ export default function Governo({ loaderData }: Route.ComponentProps) {
             </p>
           )}
           <Stats>
-            <Stat label={`Empenhado em ${year}`} value={brlCompact(overview.totals?.cents)} note="valor líquido, todos os órgãos" />
+            <Stat label={`Empenhado em ${year}`} value={brlCompact(overview.totals?.cents)} note="valor líquido, todos os órgãos" src={src.estado(year)} />
             <Stat label="Credores" value={int(overview.totals?.payees)} />
             {overview.focus.slice(0, 2).map((f) => (
               <Stat key={f.orgao} label={f.orgao.replace("Secretaria-", "").replace("Secretaria de Estado da ", "")} value={brlCompact(f.cents)} />
@@ -83,10 +84,10 @@ export default function Governo({ loaderData }: Route.ComponentProps) {
           </Stats>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title={`Por órgão · ${year}`} subtitle="Empenho líquido">
+            <Card title={`Por órgão · ${year}`} subtitle="Empenho líquido" src={src.estado(year)}>
               <BarList items={overview.orgaos.slice(0, 20).map((o) => ({ key: o.orgao, label: o.orgao, cents: o.cents }))} />
             </Card>
-            <Card title={`Maiores credores · ${year}`} subtitle="Somando todos os órgãos; CPF sempre mascarado">
+            <Card title={`Maiores credores · ${year}`} subtitle="Somando todos os órgãos; CPF sempre mascarado" src={src.estado(year)}>
               <BarList
                 items={overview.payees.map((p) => ({
                   key: p.doc,
@@ -137,7 +138,7 @@ export default function Governo({ loaderData }: Route.ComponentProps) {
                 {f.orgao} <span className="num text-base font-normal text-ink-3">· {brl(f.cents)}</span>
               </h2>
               <div className="grid gap-6 lg:grid-cols-2">
-                <Card title="Quem recebeu" subtitle="Credores do órgão no ano">
+                <Card title="Quem recebeu" subtitle="Credores do órgão no ano" src={src.estado(year)}>
                   <BarList
                     items={f.detail.payees.map((p) => ({
                       key: p.doc,
@@ -148,11 +149,11 @@ export default function Governo({ loaderData }: Route.ComponentProps) {
                     }))}
                   />
                 </Card>
-                <Card title="Em quê" subtitle="Tipo de despesa (subelemento)">
+                <Card title="Em quê" subtitle="Tipo de despesa (subelemento)" src={src.estado(year)}>
                   <BarList items={f.detail.elements.map((e) => ({ key: e.element, label: e.element, cents: e.cents }))} />
                 </Card>
               </div>
-              <Card title="Maiores empenhos" subtitle="Histórico informado pelo órgão e modalidade de contratação">
+              <Card title="Maiores empenhos" subtitle="Histórico informado pelo órgão e modalidade de contratação" src={src.estado(year)}>
                 <div className="table-wrap -mx-4 sm:-mx-5">
                   <table className="data">
                     <thead>
@@ -194,7 +195,7 @@ export default function Governo({ loaderData }: Route.ComponentProps) {
             </section>
           ))}
 
-          <Card title={`Maiores contratos assinados em ${year}`} subtitle="Todos os órgãos do Executivo">
+          <Card title={`Maiores contratos assinados em ${year}`} subtitle="Todos os órgãos do Executivo" src={src.estadoContratos()}>
             <div className="table-wrap -mx-4 sm:-mx-5">
               <table className="data">
                 <thead>

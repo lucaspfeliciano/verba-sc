@@ -5,6 +5,7 @@ import { Card, Disclaimer, Page, Stat, Stats } from "~/components/ui";
 import { overview, topSignals } from "~/lib/db.server";
 import { brlCompact, dateBr, int } from "~/lib/format";
 import type { Route } from "./+types/home";
+import { ds, src } from "~/lib/sources";
 
 export function meta() {
   return [
@@ -43,18 +44,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           label={`ALESC · gabinetes ${o.alesc?.year ?? ""}`}
           value={brlCompact(o.alesc?.cents)}
           note={`${int(o.alesc?.accounts)} gabinetes`}
+          src={o.alesc ? src.alesc(o.alesc.year) : null}
         />
         <Stat
           label={`Congresso · cota ${o.fed?.year ?? ""}`}
           value={brlCompact(o.fed?.cents)}
           note={`${int(o.fed?.members)} deputados federais e senadores de SC`}
+          src={o.fed ? [src.camara(o.fed.year), src.senado(o.fed.year)] : null}
         />
         <Stat
           label={`Câmara · assessores (${o.staff?.ref_month ?? "–"})`}
           value={brlCompact(o.staff?.cents)}
           note={`${int(o.staff?.people)} comissionados em gabinetes, no mês`}
+          src={src.cmfStaff()}
         />
-        <Stat label={`Prefeitura · pago em ${o.pmf?.year ?? ""}`} value={brlCompact(o.pmf?.cents)} note={`${int(o.pmf?.payees)} favorecidos`} />
+        <Stat label={`Prefeitura · pago em ${o.pmf?.year ?? ""}`} value={brlCompact(o.pmf?.cents)} note={`${int(o.pmf?.payees)} favorecidos`} src={o.pmf ? src.pmf(o.pmf.year) : null} />
       </Stats>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

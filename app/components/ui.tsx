@@ -2,10 +2,17 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { brl, brlCompact } from "~/lib/format";
+import { Src } from "./analysis";
+
+type Refs = (string | null | undefined)[] | string | null | undefined;
 
 export function Page({ title, kicker, intro, children }: { title: string; kicker?: string; intro?: ReactNode; children: ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+    <main id="conteudo" className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+      <p className="analysis-hint mb-6 rounded-lg border px-4 py-2.5 text-sm" style={{ borderColor: "var(--good)" }}>
+        <strong>Modo Análise ligado.</strong> Os dados destacados em verde têm origem rastreável: clique em um deles para ver
+        o arquivo oficial, a data da coleta e o SHA-256.
+      </p>
       {kicker && <p className="text-sm font-medium text-accent-ink">{kicker}</p>}
       <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
       {intro && <div className="mt-3 max-w-3xl text-ink-2">{intro}</div>}
@@ -14,7 +21,20 @@ export function Page({ title, kicker, intro, children }: { title: string; kicker
   );
 }
 
-export function Card({ title, subtitle, children, action }: { title?: ReactNode; subtitle?: ReactNode; children: ReactNode; action?: ReactNode }) {
+export function Card({
+  title,
+  subtitle,
+  children,
+  action,
+  src,
+}: {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  children: ReactNode;
+  action?: ReactNode;
+  /** Origem do conteúdo do card inteiro (Modo Análise). */
+  src?: Refs;
+}) {
   return (
     <section className="rounded-xl border border-line bg-surface">
       {(title || action) && (
@@ -26,18 +46,20 @@ export function Card({ title, subtitle, children, action }: { title?: ReactNode;
           {action}
         </header>
       )}
-      <div className="p-4 sm:p-5">{children}</div>
+      <Src refs={src} label={typeof title === "string" ? title : undefined} className="p-4 sm:p-5">
+        {children}
+      </Src>
     </section>
   );
 }
 
-export function Stat({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
+export function Stat({ label, value, note, src }: { label: string; value: ReactNode; note?: ReactNode; src?: Refs }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-4 py-3">
+    <Src refs={src} label={label} className="rounded-xl border border-line bg-surface px-4 py-3">
       <p className="text-xs font-medium uppercase tracking-wide text-ink-3">{label}</p>
       <p className="num mt-1 text-xl font-semibold sm:text-2xl">{value}</p>
       {note && <p className="mt-0.5 text-xs text-ink-3">{note}</p>}
-    </div>
+    </Src>
   );
 }
 
@@ -53,10 +75,13 @@ export function BarList({
   items,
   max,
   empty = "Sem dados para o recorte.",
+  src,
 }: {
-  items: { key: string; label: ReactNode; cents: number; href?: string; note?: ReactNode }[];
+  items: { key: string; label: ReactNode; cents: number; href?: string; note?: ReactNode; src?: Refs }[];
   max?: number;
   empty?: string;
+  /** Origem comum a todos os itens (quando o item não tem a sua). */
+  src?: Refs;
 }) {
   if (items.length === 0) return <p className="text-sm text-ink-3">{empty}</p>;
   const top = max ?? Math.max(...items.map((i) => i.cents), 1);
@@ -72,8 +97,9 @@ export function BarList({
           i.label
         );
         return (
-          <li key={i.key} className="group" title={`${typeof i.label === "string" ? i.label : ""} — ${brl(i.cents)}`}>
-            <div className="flex items-baseline justify-between gap-3 text-sm">
+          <Src as="li" key={i.key} refs={i.src ?? src} label={typeof i.label === "string" ? i.label : undefined} className="group">
+            <span className="sr-only">{`${typeof i.label === "string" ? i.label : ""}: ${brl(i.cents)}`}</span>
+            <div className="flex items-baseline justify-between gap-3 text-sm" title={`${typeof i.label === "string" ? i.label : ""} — ${brl(i.cents)}`}>
               <span className="min-w-0 truncate">{label}</span>
               <span className="num shrink-0 font-medium">{brlCompact(i.cents)}</span>
             </div>
@@ -84,7 +110,7 @@ export function BarList({
                 style={{ width: `${pct}%`, background: "var(--bar)" }}
               />
             </div>
-          </li>
+          </Src>
         );
       })}
     </ol>
@@ -142,13 +168,13 @@ export function Pill({ children }: { children: ReactNode }) {
 
 export function YearTabs({ years, current, param = "ano" }: { years: number[]; current: number; param?: string }) {
   return (
-    <nav className="flex flex-wrap gap-1.5" aria-label="Ano">
+    <nav className="scroll-strip -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Ano">
       {years.map((y) => (
         <Link
           key={y}
           to={`?${param}=${y}`}
           preventScrollReset
-          className={`num rounded-md border px-2.5 py-1 text-sm ${
+          className={`num shrink-0 rounded-md border px-2.5 py-1 text-sm ${
             y === current ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-2 hover:border-ink-3"
           }`}
         >

@@ -4,6 +4,7 @@ import { BarList, Card, Page, SourceNote, Stat, Stats, YearTabs } from "~/compon
 import { cmfOffices, electedCouncil, payeeTotals, payeeYears, topPayees } from "~/lib/db.server";
 import { brl, brlCompact, docLabel, int, isCnpj, officeLabel, titleCase } from "~/lib/format";
 import type { Route } from "./+types/vereadores";
+import { ds, src } from "~/lib/sources";
 
 export function meta() {
   return [{ title: "Vereadores de Florianópolis: assessores, gastos da Câmara e campanhas — Verba SC" }];
@@ -40,13 +41,13 @@ export default function Vereadores({ loaderData }: Route.ComponentProps) {
       }
     >
       <Stats>
-        <Stat label={`Assessores de gabinete · ${offices.month ?? "–"}`} value={brlCompact(totalStaff)} note={`${int(people)} pessoas no mês`} />
+        <Stat label={`Assessores de gabinete · ${offices.month ?? "–"}`} value={brlCompact(totalStaff)} note={`${int(people)} pessoas no mês`} src={src.cmfStaff()} />
         <Stat label="Média por gabinete" value={brlCompact(offices.offices.length ? totalStaff / offices.offices.length : 0)} note={`${int(offices.offices.length)} gabinetes`} />
         <Stat label="Projeção anual (×13)" value={brlCompact(totalStaff * 13)} note="12 salários + 13º, sem encargos" />
-        <Stat label={`Câmara pagou em ${year ?? ""}`} value={brlCompact(totals?.paid)} note={`${int(totals?.payees)} favorecidos`} />
+        <Stat label={`Câmara pagou em ${year ?? ""}`} value={brlCompact(totals?.paid)} note={`${int(totals?.payees)} favorecidos`} src={year ? src.cmf(year) : null} />
       </Stats>
 
-      <Card title={`Custo dos gabinetes · ${offices.month ?? ""}`} subtitle="Soma dos vencimentos brutos dos comissionados lotados em cada gabinete">
+      <Card title={`Custo dos gabinetes · ${offices.month ?? ""}`} subtitle="Soma dos vencimentos brutos dos comissionados lotados em cada gabinete" src={src.cmfStaff()}>
         {offices.offices.length === 0 ? (
           <p className="text-sm text-ink-3">Ainda não há dados de pessoal coletados.</p>
         ) : (
@@ -90,7 +91,7 @@ export default function Vereadores({ loaderData }: Route.ComponentProps) {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Vereadores eleitos · campanha" subtitle="Receitas e despesas declaradas ao TSE na última eleição municipal">
+        <Card title="Vereadores eleitos · campanha" subtitle="Receitas e despesas declaradas ao TSE na última eleição municipal" src={[src.tseCand(2024), ...src.tseMoney(2024)]}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -117,7 +118,7 @@ export default function Vereadores({ loaderData }: Route.ComponentProps) {
             </table>
           </div>
         </Card>
-        <Card title={`Quem a Câmara pagou · ${year ?? ""}`} subtitle="Maiores favorecidos, por empenhos emitidos no ano" action={years.length > 1 && year ? <YearTabs years={years} current={year} /> : undefined}>
+        <Card title={`Quem a Câmara pagou · ${year ?? ""}`} subtitle="Maiores favorecidos, por empenhos emitidos no ano" src={year ? src.cmf(year) : null} action={years.length > 1 && year ? <YearTabs years={years} current={year} /> : undefined}>
           <BarList
             items={payees.map((p) => ({
               key: p.doc,

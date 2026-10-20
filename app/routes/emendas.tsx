@@ -5,6 +5,7 @@ import { BarList, Card, Page, SourceNote, Stat, Stats } from "~/components/ui";
 import { emendaOverview, emendaYears } from "~/lib/db.server";
 import { brl, brlCompact, int, titleCase } from "~/lib/format";
 import type { Route } from "./+types/emendas";
+import { ds, src } from "~/lib/sources";
 
 export function meta() {
   return [{ title: "Emendas parlamentares dos deputados federais e senadores de SC — Verba SC" }];
@@ -20,7 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function Emendas({ loaderData }: Route.ComponentProps) {
   const { years, year, authors, municipios, funcoes, totals } = loaderData;
   const chip = (active: boolean) =>
-    `num rounded-md border px-2.5 py-1 text-sm ${active ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-2 hover:border-ink-3"}`;
+    `num shrink-0 rounded-md border px-2.5 py-1 text-sm ${active ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-2 hover:border-ink-3"}`;
   const top = authors[0]?.executed || 1;
   return (
     <Page
@@ -34,7 +35,7 @@ export default function Emendas({ loaderData }: Route.ComponentProps) {
         </p>
       }
     >
-      <nav className="flex flex-wrap gap-1.5" aria-label="Ano">
+      <nav className="scroll-strip -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Ano">
         <Link to="?" preventScrollReset className={chip(year === null)}>
           Todos os anos
         </Link>
@@ -47,14 +48,14 @@ export default function Emendas({ loaderData }: Route.ComponentProps) {
       <Stats>
         <Stat label="Emendas" value={int(totals?.n)} note={year ? `de ${year}` : "todos os anos"} />
         <Stat label="Empenhado" value={brlCompact(totals?.committed)} />
-        <Stat label="Executado" value={brlCompact(totals?.executed)} note="pago + restos a pagar pagos" />
+        <Stat label="Executado" value={brlCompact(totals?.executed)} note="pago + restos a pagar pagos" src={src.emendas()} />
         <Stat label="Autores" value={int(authors.length)} note="parlamentares e bancada" />
       </Stats>
       <EmendasNote />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card title="Por autor" subtitle="Clique no nome para ver destinos, favorecidos e convênios">
+          <Card title="Por autor" subtitle="Clique no nome para ver destinos, favorecidos e convênios" src={src.emendas()}>
             <div className="table-wrap -mx-4 sm:-mx-5">
               <table className="data">
                 <thead>
@@ -87,12 +88,12 @@ export default function Emendas({ loaderData }: Route.ComponentProps) {
             </div>
           </Card>
         </div>
-        <Card title="Por área" subtitle="Função orçamentária">
+        <Card title="Por área" subtitle="Função orçamentária" src={src.emendas()}>
           <BarList items={funcoes.map((f) => ({ key: f.funcao, label: f.funcao, cents: f.executed, note: `${int(f.n)} emenda(s)` }))} />
         </Card>
       </div>
 
-      <Card title="Destinos que mais receberam" subtitle="Localidade de aplicação informada na emenda">
+      <Card title="Destinos que mais receberam" subtitle="Localidade de aplicação informada na emenda" src={src.emendas()}>
         <BarList
           items={municipios.map((m) => ({
             key: `${m.municipio}-${m.uf}`,

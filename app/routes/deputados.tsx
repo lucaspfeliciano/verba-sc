@@ -6,6 +6,8 @@ import { CATEGORY_NATUREZAS } from "~/lib/alesc-map";
 import { alescCategories, alescRanking, alescRecipients, alescYears } from "~/lib/db.server";
 import { brl, brlCompact, gabineteHref, int, titleCase } from "~/lib/format";
 import type { Route } from "./+types/deputados";
+import { ds, src } from "~/lib/sources";
+import { Src } from "~/components/analysis";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   return [{ title: `Gastos de gabinete dos deputados estaduais de SC em ${data?.year ?? ""} — Verba SC` }];
@@ -45,10 +47,10 @@ export default function Deputados({ loaderData }: Route.ComponentProps) {
     >
       <YearTabs years={years} current={year} />
       <Stats>
-        <Stat label={`Total em ${year}`} value={brlCompact(total)} note={`${int(ranking.length)} contas`} />
-        <Stat label="Mediana por deputado" value={brlCompact(median)} note={`${int(deputies.length)} identificados`} />
-        <Stat label="Maior gasto" value={brlCompact(ranking[0]?.cents)} note={ranking[0]?.account} />
-        <Stat label="Lançamentos" value={int(ranking.reduce((s, r) => s + r.n, 0))} />
+        <Stat label={`Total em ${year}`} value={brlCompact(total)} note={`${int(ranking.length)} contas`} src={src.alesc(year)} />
+        <Stat label="Mediana por deputado" value={brlCompact(median)} note={`${int(deputies.length)} identificados`} src={src.alesc(year)} />
+        <Stat label="Maior gasto" value={brlCompact(ranking[0]?.cents)} note={ranking[0]?.account} src={src.alesc(year)} />
+        <Stat label="Lançamentos" value={int(ranking.reduce((s, r) => s + r.n, 0))} src={src.alesc(year)} />
       </Stats>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -66,7 +68,7 @@ export default function Deputados({ loaderData }: Route.ComponentProps) {
                 </thead>
                 <tbody>
                   {ranking.map((r, i) => (
-                    <tr key={r.account}>
+                    <Src as="tr" key={r.account} refs={src.alesc(year)} label={`${r.account} · ${year}`}>
                       <td className="num text-ink-3">{i + 1}</td>
                       <td className="min-w-40">
                         <Link to={gabineteHref(r.account, r.slug)} className="link">
@@ -89,14 +91,14 @@ export default function Deputados({ loaderData }: Route.ComponentProps) {
                           .map((c) => `${titleCase(c.category)} ${brlCompact(c.cents)}`)
                           .join(" · ")}
                       </td>
-                    </tr>
+                    </Src>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
         </div>
-        <Card title="Por tipo de verba" subtitle={`Soma de todos os gabinetes em ${year}`}>
+        <Card title="Por tipo de verba" subtitle={`Soma de todos os gabinetes em ${year}`} src={src.alesc(year)}>
           <BarList
             items={categories.map((c) => ({
               key: c.category,
@@ -110,6 +112,7 @@ export default function Deputados({ loaderData }: Route.ComponentProps) {
       <Card
         title={`Quem recebe o dinheiro de cada verba · ${year}`}
         subtitle="O CSV dos gabinetes diz em que o dinheiro foi gasto; os pagamentos a credores da ALESC dizem quem recebeu, com CPF/CNPJ"
+        src={[src.alesc(year), src.alescPay(year)]}
       >
         <RecipientsByCategory year={year} categories={categories} recipients={recipients} />
       </Card>

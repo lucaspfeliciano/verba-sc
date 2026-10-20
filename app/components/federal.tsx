@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { fedDetail } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, fedCategory, HOUSE_LABEL, int } from "~/lib/format";
 import { BarList, Card, Columns, SourceNote, YearTabs } from "./ui";
+import { ds, src } from "~/lib/sources";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof fedDetail>>>;
 
@@ -13,17 +14,17 @@ export const QUOTA_SOURCE: Record<string, { label: string; href: string }> = {
 
 export function FedSection({ d }: { d: Detail }) {
   const yearTotal = d.yearly.find((y) => y.year === d.year)?.cents ?? 0;
-  const src = QUOTA_SOURCE[d.house];
+  const quota = QUOTA_SOURCE[d.house];
   return (
     <div className="space-y-6">
-      <Card title={`Cota parlamentar (${HOUSE_LABEL[d.house]}), por ano`} subtitle="Valor reembolsado ou pago com a cota para o exercício da atividade parlamentar">
+      <Card title={`Cota parlamentar (${HOUSE_LABEL[d.house]}), por ano`} subtitle="Valor reembolsado ou pago com a cota para o exercício da atividade parlamentar" src={ds(d.house, d.house === "camara" ? "ceap" : "ceaps")}>
         <Columns items={d.yearly.map((y) => ({ key: String(y.year), label: String(y.year).slice(2), cents: y.cents }))} />
         <div className="mt-4">
           <YearTabs years={d.yearly.map((y) => y.year).reverse()} current={d.year} />
         </div>
       </Card>
 
-      <Card title={`Por categoria · ${d.year}`} subtitle={`Total no ano: ${brl(yearTotal)}. A mediana é de todos os parlamentares do país que usaram a categoria.`}>
+      <Card title={`Por categoria · ${d.year}`} subtitle={`Total no ano: ${brl(yearTotal)}. A mediana é de todos os parlamentares do país que usaram a categoria.`} src={src.fed(d.house, d.year)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -54,7 +55,7 @@ export function FedSection({ d }: { d: Detail }) {
         </div>
       </Card>
 
-      <Card title={`Quem recebeu · ${d.year}`} subtitle="Fornecedores pagos com a cota, com CNPJ">
+      <Card title={`Quem recebeu · ${d.year}`} subtitle="Fornecedores pagos com a cota, com CNPJ" src={src.fed(d.house, d.year)}>
         <BarList
           items={d.suppliers.map((s, i) => ({
             key: `${s.supplier_doc}-${i}`,
@@ -66,7 +67,7 @@ export function FedSection({ d }: { d: Detail }) {
         />
       </Card>
 
-      <Card title={`Maiores despesas · ${d.year}`}>
+      <Card title={`Maiores despesas · ${d.year}`} src={src.fed(d.house, d.year)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -112,8 +113,8 @@ export function FedSection({ d }: { d: Detail }) {
         </div>
       </Card>
       <SourceNote>
-        <a className="link" href={src.href} rel="noreferrer">
-          {src.label}
+        <a className="link" href={quota.href} rel="noreferrer">
+          {quota.label}
         </a>
         .
       </SourceNote>

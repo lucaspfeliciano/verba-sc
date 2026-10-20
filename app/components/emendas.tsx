@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { emendasForPolitician } from "~/lib/db.server";
 import { brl, dateBr, docLabel, int, titleCase } from "~/lib/format";
 import { BarList, Card, Columns, SourceNote } from "./ui";
+import { ds, src } from "~/lib/sources";
 
 type Data = NonNullable<Awaited<ReturnType<typeof emendasForPolitician>>>;
 
@@ -22,14 +23,14 @@ export function EmendasSection({ d }: { d: Data }) {
   const total = d.yearly.reduce((s, y) => s + y.executed, 0);
   return (
     <div className="space-y-6">
-      <Card title="Emendas parlamentares, por ano" subtitle={`${int(d.yearly.reduce((s, y) => s + y.n, 0))} emendas, ${brl(total)} executados`}>
+      <Card title="Emendas parlamentares, por ano" subtitle={`${int(d.yearly.reduce((s, y) => s + y.n, 0))} emendas, ${brl(total)} executados`} src={src.emendas()}>
         <Columns items={d.yearly.map((y) => ({ key: String(y.year), label: String(y.year).slice(2), cents: y.executed }))} />
         <div className="mt-4">
           <EmendasNote />
         </div>
       </Card>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Para onde foi" subtitle="Localidade de aplicação do recurso">
+        <Card title="Para onde foi" subtitle="Localidade de aplicação do recurso" src={src.emendas()}>
           <BarList
             items={d.municipios.map((m) => ({
               key: m.municipio,
@@ -39,7 +40,7 @@ export function EmendasSection({ d }: { d: Data }) {
             }))}
           />
         </Card>
-        <Card title="Quem recebeu" subtitle="Favorecidos dos pagamentos, com CNPJ/CPF">
+        <Card title="Quem recebeu" subtitle="Favorecidos dos pagamentos, com CNPJ/CPF" src={src.emendas()}>
           <BarList
             items={d.favorecidos.map((f, i) => ({
               key: `${f.doc}-${i}`,
@@ -52,7 +53,7 @@ export function EmendasSection({ d }: { d: Data }) {
         </Card>
       </div>
       {d.convenios.length > 0 && (
-        <Card title="Maiores convênios" subtitle="Objeto e entidade conveniada">
+        <Card title="Maiores convênios" subtitle="Objeto e entidade conveniada" src={src.emendas()}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>

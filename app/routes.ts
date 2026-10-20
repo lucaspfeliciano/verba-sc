@@ -16,4 +16,5 @@ export default [
   route("busca", "routes/busca.tsx"),
   route("fontes", "routes/fontes.tsx"),
   route("sobre", "routes/sobre.tsx"),
+  route("api/proveniencia", "routes/api.proveniencia.ts"),
 ] satisfies RouteConfig;

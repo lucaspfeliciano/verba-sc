@@ -20,6 +20,8 @@ import {
 } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, int, isCnpj, OFFICE_LABEL, titleCase } from "~/lib/format";
 import type { Route } from "./+types/pessoa";
+import { ds, src } from "~/lib/sources";
+import { Src } from "~/components/analysis";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   const p = data?.politician;
@@ -159,7 +161,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
               Comunicação e os contratos.
             </p>
           </Card>
-          <Card title="Pagos diretamente a esta pessoa pelo Estado" subtitle="Empenhos em que o credor é o próprio governante (pelo CPF do TSE), desde 2021">
+          <Card title="Pagos diretamente a esta pessoa pelo Estado" subtitle="Empenhos em que o credor é o próprio governante (pelo CPF do TSE), desde 2021" src={ds("estado", "empenhos")}>
             {direct.length === 0 ? (
               <p className="text-sm text-ink-3">Nenhum empenho em nome desta pessoa nos dados coletados.</p>
             ) : (
@@ -196,6 +198,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
         <Card
           title={`Gabinete na Câmara Municipal · ${staff.month}`}
           subtitle={`${cmfOffice}: ${int(staff.staff.length)} comissionados, ${brl(staff.total)} em vencimentos brutos no mês`}
+          src={src.cmfStaff()}
         >
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
@@ -224,7 +227,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
       )}
 
       {perDiems.length > 0 && (
-        <Card title="Diárias pagas pela Prefeitura" subtitle={`${int(perDiems.length)} empenho(s), ${brl(perDiemTotal)} pagos`}>
+        <Card title="Diárias pagas pela Prefeitura" subtitle={`${int(perDiems.length)} empenho(s), ${brl(perDiemTotal)} pagos`} src={ds("epublica_pmf", "diarias")}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -268,7 +271,13 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
               </thead>
               <tbody>
                 {candidacies.map((c) => (
-                  <tr key={c.sq_candidato} className={campaign?.sq_candidato === c.sq_candidato ? "bg-surface-2" : ""}>
+                  <Src
+                    as="tr"
+                    key={c.sq_candidato}
+                    refs={[src.tseCand(c.year), ...src.tseMoney(c.year), src.tseAssets(c.year)]}
+                    label={`Candidatura de ${c.year}`}
+                    className={campaign?.sq_candidato === c.sq_candidato ? "bg-surface-2" : ""}
+                  >
                     <td className="num">
                       {c.receipts > 0 || c.expenses > 0 ? (
                         <Link to={`?campanha=${c.sq_candidato}`} preventScrollReset className="link">
@@ -285,7 +294,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
                     <td className="r">{c.receipts ? brlCompact(c.receipts) : "–"}</td>
                     <td className="r">{c.expenses ? brlCompact(c.expenses) : "–"}</td>
                     <td className="r">{c.assets ? brlCompact(c.assets) : "–"}</td>
-                  </tr>
+                  </Src>
                 ))}
               </tbody>
             </table>
@@ -295,7 +304,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
 
         {campaign && camp && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title={`Maiores doadores · ${campaign.year}`} subtitle="Inclui repasses de partido e recursos próprios">
+            <Card title={`Maiores doadores · ${campaign.year}`} subtitle="Inclui repasses de partido e recursos próprios" src={ds("tse", "receitas", campaign.year)}>
               <BarList
                 items={camp.donors.map((d, i) => ({
                   key: `${d.donor_doc}-${i}`,
@@ -306,7 +315,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
                 }))}
               />
             </Card>
-            <Card title={`Maiores fornecedores · ${campaign.year}`} subtitle="Despesas contratadas pela campanha">
+            <Card title={`Maiores fornecedores · ${campaign.year}`} subtitle="Despesas contratadas pela campanha" src={ds("tse", "despesas_contratadas", campaign.year)}>
               <BarList
                 items={camp.suppliers.map((s, i) => ({
                   key: `${s.supplier_doc}-${i}`,
@@ -318,7 +327,7 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
               />
             </Card>
             {camp.assets.length > 0 && (
-              <Card title={`Bens declarados · ${campaign.year}`} subtitle="Declaração entregue no registro da candidatura">
+              <Card title={`Bens declarados · ${campaign.year}`} subtitle="Declaração entregue no registro da candidatura" src={src.tseAssets(campaign.year)}>
                 <div className="table-wrap -mx-4 sm:-mx-5">
                   <table className="data">
                     <tbody>

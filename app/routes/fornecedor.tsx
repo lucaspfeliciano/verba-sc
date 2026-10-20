@@ -5,6 +5,7 @@ import { Card, Disclaimer, Page, SourceNote, Stat, Stats } from "~/components/ui
 import { emendasByDoc, fedBySupplier, stateBySupplier, supplierByDoc } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, ENTITY_LABEL, fedCategory, gabineteHref, int, OFFICE_LABEL, titleCase } from "~/lib/format";
 import type { Route } from "./+types/fornecedor";
+import { ds, src } from "~/lib/sources";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   return [{ title: `${titleCase(data?.name) || "Fornecedor"} (${docLabel(data?.doc)}) — Verba SC` }];
@@ -43,7 +44,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {payee.length > 0 && (
-        <Card title="Pagamentos do município, por ano" subtitle="Empenhos emitidos no ano">
+        <Card title="Pagamentos do município, por ano" subtitle="Empenhos emitidos no ano" src={[ds("epublica_pmf", "gastos_favorecido"), ds("epublica_cmf", "gastos_favorecido")]}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -78,7 +79,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {(state.years.length > 0 || state.contracts.length > 0) && (
-        <Card title="Governo do Estado de SC" subtitle="Empenhos líquidos por ano e órgão, e contratos assinados">
+        <Card title="Governo do Estado de SC" subtitle="Empenhos líquidos por ano e órgão, e contratos assinados" src={[ds("estado", "empenhos"), src.estadoContratos()]}>
           {state.years.length > 0 && (
             <div className="table-wrap -mx-4 sm:-mx-5">
               <table className="data">
@@ -134,7 +135,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {emendas.length > 0 && (
-        <Card title="Recebeu de emendas parlamentares de SC" subtitle="Pagamentos a este CNPJ por emendas de deputados federais, senadores ou da bancada de SC">
+        <Card title="Recebeu de emendas parlamentares de SC" subtitle="Pagamentos a este CNPJ por emendas de deputados federais, senadores ou da bancada de SC" src={src.emendas()}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -169,7 +170,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {fed.length > 0 && (
-        <Card title="Pago pela cota parlamentar de deputados federais e senadores de SC" subtitle="Câmara dos Deputados (CEAP) e Senado (CEAPS)">
+        <Card title="Pago pela cota parlamentar de deputados federais e senadores de SC" subtitle="Câmara dos Deputados (CEAP) e Senado (CEAPS)" src={[ds("camara", "ceap"), ds("senado", "ceaps")]}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -205,7 +206,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {(services.length > 0 || donations.length > 0) && (
-        <Card title="Relação com campanhas eleitorais" subtitle="Dados declarados pelos candidatos ao TSE">
+        <Card title="Relação com campanhas eleitorais" subtitle="Dados declarados pelos candidatos ao TSE" src={[ds("tse", "receitas"), ds("tse", "despesas_contratadas")]}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -242,7 +243,7 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
       )}
 
       {pncp.length > 0 && (
-        <Card title="Contratos com a Prefeitura no PNCP">
+        <Card title="Contratos com a Prefeitura no PNCP" src={src.pncp()}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>

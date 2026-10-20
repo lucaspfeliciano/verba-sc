@@ -17,6 +17,7 @@ import {
   type SignalFull,
 } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, ENTITY_LABEL, fedCategory, gabineteHref, HOUSE_LABEL, int, OFFICE_LABEL, titleCase } from "~/lib/format";
+import { ds, src } from "~/lib/sources";
 import type { Route } from "./+types/sinal";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
@@ -131,6 +132,7 @@ function CampaignToPayee({ signal, ev, d }: { signal: SignalFull; ev: any; d: Ca
       </Stats>
 
       <Card
+        src={src.tseMoney(ev.election)}
         title={`O que a campanha registrou · ${ev.election}`}
         subtitle={
           d.candidacy
@@ -177,6 +179,7 @@ function CampaignToPayee({ signal, ev, d }: { signal: SignalFull; ev: any; d: Ca
       </Card>
 
       <Card
+        src={ds(entity === 2002 ? "epublica_pmf" : "epublica_cmf", "gastos_favorecido")}
         title={`Pagamentos da ${ENTITY_LABEL[entity]} a este CNPJ, ano a ano`}
         subtitle={`Empenhos emitidos em cada ano. O ▲ marca a eleição de ${ev.election}.`}
       >
@@ -220,7 +223,7 @@ function CampaignToPayee({ signal, ev, d }: { signal: SignalFull; ev: any; d: Ca
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Outros CNPJs da mesma empresa" subtitle="Filiais e empresas com a mesma raiz de CNPJ (8 primeiros dígitos)">
+        <Card title="Outros CNPJs da mesma empresa" subtitle="Filiais e empresas com a mesma raiz de CNPJ (8 primeiros dígitos)" src={[ds("epublica_pmf", "gastos_favorecido"), ds("epublica_cmf", "gastos_favorecido")]}>
           {d.related.length === 0 ? (
             <p className="text-sm text-ink-3">Nenhum outro CNPJ com a mesma raiz recebeu da Prefeitura ou da Câmara.</p>
           ) : (
@@ -235,7 +238,7 @@ function CampaignToPayee({ signal, ev, d }: { signal: SignalFull; ev: any; d: Ca
             />
           )}
         </Card>
-        <Card title="Campanhas que este CNPJ atendeu" subtitle="Em todo o recorte do TSE (SC e Florianópolis)">
+        <Card title="Campanhas que este CNPJ atendeu" subtitle="Em todo o recorte do TSE (SC e Florianópolis)" src={[ds("tse", "despesas_contratadas")]}>
           <ul className="space-y-2 text-sm">
             {d.otherCampaigns.map((c, i) => (
               <li key={i} className="flex justify-between gap-3">
@@ -256,7 +259,7 @@ function CampaignToPayee({ signal, ev, d }: { signal: SignalFull; ev: any; d: Ca
       </div>
 
       {d.contracts.length > 0 && (
-        <Card title="Contratos no PNCP com este CNPJ">
+        <Card title="Contratos no PNCP com este CNPJ" src={src.pncp()}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <tbody>
@@ -370,7 +373,7 @@ function AlescPayee({ signal, d }: { signal: SignalFull; d: AlescPayeeData }) {
         <Stat label="CNPJ na campanha" value={cnpj ? docLabel(cnpj) : "–"} note="a ALESC não informa CNPJ" />
         <Stat label="Ligação" value="Por nome" note="confira se é a mesma empresa" />
       </Stats>
-      <Card title="Na campanha" subtitle="Despesas declaradas ao TSE pelo mesmo parlamentar">
+      <Card title="Na campanha" subtitle="Despesas declaradas ao TSE pelo mesmo parlamentar" src={[ds("tse", "despesas_contratadas")]}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -399,7 +402,7 @@ function AlescPayee({ signal, d }: { signal: SignalFull; d: AlescPayeeData }) {
           </table>
         </div>
       </Card>
-      <Card title="Na verba de gabinete da ALESC" subtitle="Lançamentos do gabinete com o mesmo favorecido">
+      <Card title="Na verba de gabinete da ALESC" subtitle="Lançamentos do gabinete com o mesmo favorecido" src={ds("alesc", "gabinetes")}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -476,6 +479,7 @@ function Outlier({ ev, d, recipients }: { ev: any; d: OutlierData; recipients: A
         <Stat label="Lançamentos" value={int(d.lines.length)} note="maiores listados abaixo" />
       </Stats>
       <Card
+        src={src.alescPay(ev.year)}
         title={`Quem recebe esta verba · ${ev.year}`}
         subtitle="Credores que a ALESC pagou na natureza de despesa correspondente, segundo os pagamentos a credores"
       >
@@ -542,7 +546,7 @@ function Outlier({ ev, d, recipients }: { ev: any; d: OutlierData; recipients: A
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={`Todos os gabinetes · ${titleCase(ev.category)} · ${ev.year}`} subtitle="O gabinete do sinal está destacado">
+        <Card title={`Todos os gabinetes · ${titleCase(ev.category)} · ${ev.year}`} subtitle="O gabinete do sinal está destacado" src={src.alesc(ev.year)}>
           <BarList
             items={d.peers.slice(0, 25).map((p) => ({
               key: p.account,
@@ -552,7 +556,7 @@ function Outlier({ ev, d, recipients }: { ev: any; d: OutlierData; recipients: A
             }))}
           />
         </Card>
-        <Card title={`Histórico do gabinete em ${titleCase(ev.category)}`} subtitle="Total por ano">
+        <Card title={`Histórico do gabinete em ${titleCase(ev.category)}`} subtitle="Total por ano" src={ds("alesc", "gabinetes")}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <tbody>
@@ -567,7 +571,7 @@ function Outlier({ ev, d, recipients }: { ev: any; d: OutlierData; recipients: A
           </div>
         </Card>
       </div>
-      <Card title={`Lançamentos · ${titleCase(ev.category)} · ${ev.year}`}>
+      <Card title={`Lançamentos · ${titleCase(ev.category)} · ${ev.year}`} src={src.alesc(ev.year)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -674,7 +678,7 @@ function FedQuota({ ev, d }: { ev: any; d: FedQuotaData }) {
         <Stat label="Período na cota" value={`${ev.y0}–${ev.y1}`} />
         <Stat label="Ligação" value="CNPJ" note="mesmo documento nas duas fontes" />
       </Stats>
-      <Card title="Na campanha" subtitle="Despesas declaradas ao TSE pelo mesmo parlamentar">
+      <Card title="Na campanha" subtitle="Despesas declaradas ao TSE pelo mesmo parlamentar" src={[ds("tse", "despesas_contratadas")]}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -701,7 +705,7 @@ function FedQuota({ ev, d }: { ev: any; d: FedQuotaData }) {
           </table>
         </div>
       </Card>
-      <Card title="Na cota parlamentar" subtitle="Cada lançamento, com a nota fiscal quando a Casa publica">
+      <Card title="Na cota parlamentar" subtitle="Cada lançamento, com a nota fiscal quando a Casa publica" src={ds(ev.house, ev.house === "camara" ? "ceap" : "ceaps")}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -765,7 +769,7 @@ function FedOutlier({ ev, d }: { ev: any; d: FedOutlierData }) {
         <Stat label="Vezes a mediana" value={ratio ? `${ratio.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}×` : "–"} />
       </Stats>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={`Bancada de SC · ${fedCategory(ev.category)} · ${ev.year}`} subtitle="O parlamentar do sinal está destacado">
+        <Card title={`Bancada de SC · ${fedCategory(ev.category)} · ${ev.year}`} subtitle="O parlamentar do sinal está destacado" src={src.fed(ev.house, ev.year)}>
           <BarList
             items={d.peers.map((p) => ({
               key: p.member_id,
@@ -775,7 +779,7 @@ function FedOutlier({ ev, d }: { ev: any; d: FedOutlierData }) {
             }))}
           />
         </Card>
-        <Card title="Histórico nesta categoria" subtitle="Gasto do parlamentar por ano, comparado com a mediana nacional">
+        <Card title="Histórico nesta categoria" subtitle="Gasto do parlamentar por ano, comparado com a mediana nacional" src={ds(ev.house, ev.house === "camara" ? "ceap" : "ceaps")}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <thead>
@@ -798,7 +802,7 @@ function FedOutlier({ ev, d }: { ev: any; d: FedOutlierData }) {
           </div>
         </Card>
       </div>
-      <Card title={`Lançamentos · ${fedCategory(ev.category)} · ${ev.year}`} subtitle="Os maiores, com fornecedor e nota fiscal">
+      <Card title={`Lançamentos · ${fedCategory(ev.category)} · ${ev.year}`} subtitle="Os maiores, com fornecedor e nota fiscal" src={src.fed(ev.house, ev.year)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -872,7 +876,7 @@ function EmendaCampaign({ d }: { d: EmendaData }) {
         <Stat label="Convênios" value={int(d.convenios.length)} />
         <Stat label="Ligação" value="Documento" note="mesmo CNPJ/CPF nas duas fontes" />
       </Stats>
-      <Card title="Na campanha" subtitle="Declarado ao TSE pelo mesmo parlamentar">
+      <Card title="Na campanha" subtitle="Declarado ao TSE pelo mesmo parlamentar" src={[ds("tse", "receitas"), ds("tse", "despesas_contratadas")]}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -901,7 +905,7 @@ function EmendaCampaign({ d }: { d: EmendaData }) {
           </table>
         </div>
       </Card>
-      <Card title="Nas emendas" subtitle="Pagamentos ao mesmo CNPJ/CPF por emendas deste parlamentar">
+      <Card title="Nas emendas" subtitle="Pagamentos ao mesmo CNPJ/CPF por emendas deste parlamentar" src={src.emendas()}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <thead>
@@ -931,7 +935,7 @@ function EmendaCampaign({ d }: { d: EmendaData }) {
         </div>
       </Card>
       {d.convenios.length > 0 && (
-        <Card title="Convênios das mesmas emendas">
+        <Card title="Convênios das mesmas emendas" src={src.emendas()}>
           <div className="table-wrap -mx-4 sm:-mx-5">
             <table className="data">
               <tbody>
@@ -994,7 +998,7 @@ function StateCampaign({ ev, d }: { ev: any; d: StateData }) {
           note={ev.new_supplier ? "não recebia antes da eleição" : growth !== null ? "depois ÷ antes" : "sem base de comparação"}
         />
       </Stats>
-      <Card title={`O que a campanha registrou · ${ev.election}`} subtitle={d.candidacy ? `${d.candidacy.ballot_name} · ${d.candidacy.party ?? ""}` : undefined}>
+      <Card title={`O que a campanha registrou · ${ev.election}`} subtitle={d.candidacy ? `${d.candidacy.ballot_name} · ${d.candidacy.party ?? ""}` : undefined} src={src.tseMoney(ev.election)}>
         <div className="table-wrap -mx-4 sm:-mx-5">
           <table className="data">
             <tbody>
@@ -1012,14 +1016,14 @@ function StateCampaign({ ev, d }: { ev: any; d: StateData }) {
           </table>
         </div>
       </Card>
-      <Card title="Empenhos do Governo de SC a este CNPJ/CPF, ano a ano" subtitle={`O ▲ marca a eleição de ${ev.election}; os dados do Estado começam em 2021.`}>
+      <Card src={ds("estado", "empenhos")} title="Empenhos do Governo de SC a este CNPJ/CPF, ano a ano" subtitle={`O ▲ marca a eleição de ${ev.election}; os dados do Estado começam em 2021.`}>
         <BeforeAfter years={d.history.map((h) => ({ year: h.year, cents: h.cents }))} election={ev.election} />
       </Card>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Órgãos que pagaram depois da eleição">
+        <Card title="Órgãos que pagaram depois da eleição" src={ds("estado", "empenhos")}>
           <BarList items={d.orgaos.map((o) => ({ key: o.orgao, label: o.orgao, cents: o.cents }))} />
         </Card>
-        <Card title="Contratos com o Estado">
+        <Card title="Contratos com o Estado" src={src.estadoContratos()}>
           {d.contracts.length === 0 ? (
             <p className="text-sm text-ink-3">Nenhum contrato registrado para este documento.</p>
           ) : (
