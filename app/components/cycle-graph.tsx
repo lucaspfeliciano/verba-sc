@@ -30,6 +30,7 @@ export const EDGE_NAME: Record<string, string> = {
   cota: "cota parlamentar",
   emenda: "emenda",
   gabinete: "verba de gabinete",
+  socio: "sócio (provável)",
 };
 const PUBLIC = new Set(["cota", "emenda", "gabinete"]);
 
@@ -49,6 +50,12 @@ export function KindLegend() {
           <line x1="1" y1="4" x2="21" y2="4" stroke="var(--ink-2)" strokeWidth="2" strokeDasharray="4 3" />
         </svg>
         Dinheiro público (cota, emenda, gabinete)
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <svg width="22" height="8" aria-hidden>
+          <line x1="1" y1="4" x2="21" y2="4" stroke="var(--ink-2)" strokeWidth="2" strokeDasharray="1.5 4" strokeLinecap="round" />
+        </svg>
+        Sócio da empresa (vínculo provável, não é dinheiro)
       </li>
     </ul>
   );
@@ -106,8 +113,10 @@ export function CycleGraph({ nodes, steps, size = "lg" }: { nodes: CycleNode[]; 
         const lx = 0.25 * p0.x + 0.5 * qx + 0.25 * p1.x;
         const ly = 0.25 * p0.y + 0.5 * qy + 0.25 * p1.y;
         const isPublic = s.kinds.some((k) => PUBLIC.has(k.kind));
-        const text = brlCompact(s.cents);
-        const kindText = s.kinds.map((k) => EDGE_NAME[k.kind] ?? k.kind).join(" + ");
+        // Sócio não é dinheiro: linha pontilhada, sem valor.
+        const isPartner = s.kinds.every((k) => k.kind === "socio");
+        const text = isPartner ? "sócio" : brlCompact(s.cents);
+        const kindText = isPartner ? "vínculo provável" : s.kinds.map((k) => EDGE_NAME[k.kind] ?? k.kind).join(" + ");
         const boxW = lg ? Math.max(text.length * 7.6, kindText.length * 5.6) + 16 : text.length * 5.4 + 10;
         const boxH = lg ? 34 : 15;
         return (
@@ -117,7 +126,8 @@ export function CycleGraph({ nodes, steps, size = "lg" }: { nodes: CycleNode[]; 
               fill="none"
               stroke="var(--ink-2)"
               strokeWidth={lg ? 1.8 : 1.3}
-              strokeDasharray={isPublic ? "6 4" : undefined}
+              strokeDasharray={isPartner ? "1.5 4" : isPublic ? "6 4" : undefined}
+              strokeLinecap={isPartner ? "round" : undefined}
               markerEnd={`url(#${markerId})`}
             />
             <rect x={lx - boxW / 2} y={ly - boxH / 2} width={boxW} height={boxH} rx={lg ? 7 : 4} fill="var(--surface)" stroke="var(--border)" />
@@ -155,7 +165,7 @@ export function CycleGraph({ nodes, steps, size = "lg" }: { nodes: CycleNode[]; 
               {n.label.charAt(0)}
             </text>
             <text x={tx2} y={ty} textAnchor={under ? "middle" : anchor} fontSize={lg ? 13 : 9} fontWeight={600} fill="var(--ink)">
-              {short(n.label, lg ? 26 : under ? 14 : vertical ? 16 : 12)}
+              {short(n.label, lg ? (vertical ? 30 : 22) : under ? 14 : vertical ? 16 : 12)}
             </text>
             {lg && (
               <text x={tx} y={ty + 14} textAnchor={anchor} fontSize={10.5} fill="var(--ink-3)">

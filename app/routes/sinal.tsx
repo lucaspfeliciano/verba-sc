@@ -1079,6 +1079,7 @@ const EDGE_SRC: Record<string, string[]> = {
   cota: [ds("camara", "ceap"), ds("senado", "ceaps")],
   emenda: [ds("cgu", "emendas")],
   gabinete: [ds("alesc", "pagamentos")],
+  socio: [ds("receita", "cnpj")],
 };
 
 function NodeLink({ n }: { n: CycleNode }) {
@@ -1099,7 +1100,11 @@ function NodeLink({ n }: { n: CycleNode }) {
   return <>{titleCase(n.label)}</>;
 }
 
-function MoneyCycle({ ev }: { ev: { nodes: CycleNode[]; steps: CycleStep[]; total_cents: number; min_edge_cents: number; has_party: boolean; has_public: boolean } }) {
+function MoneyCycle({
+  ev,
+}: {
+  ev: { nodes: CycleNode[]; steps: CycleStep[]; total_cents: number; min_edge_cents: number; has_party: boolean; has_public: boolean; has_partner?: boolean; other_partners?: string[] };
+}) {
   const byKey = new Map(ev.nodes.map((n) => [n.key, n]));
   return (
     <>
@@ -1154,7 +1159,7 @@ function MoneyCycle({ ev }: { ev: { nodes: CycleNode[]; steps: CycleStep[]; tota
                         </div>
                       ))}
                     </td>
-                    <td className="r font-medium">{brl(s.cents)}</td>
+                    <td className="r font-medium">{s.kinds.every((k) => k.kind === "socio") ? "–" : brl(s.cents)}</td>
                   </Src>
                 );
               })}
@@ -1175,6 +1180,18 @@ function MoneyCycle({ ev }: { ev: { nodes: CycleNode[]; steps: CycleStep[]; tota
           </li>
           {ev.has_party && <li>Há partido no ciclo: partidos financiam candidatos e recebem sobras de campanha; isso é comum e legal.</li>}
           {ev.nodes.every((n) => n.kind === "politico") && <li>Só há candidatos no ciclo: doações entre colegas de chapa são comuns e legais.</li>}
+          {ev.other_partners && ev.other_partners.length > 0 && (
+            <li>
+              Outros sócios da mesma empresa também doaram para o ciclo: {ev.other_partners.map((x) => titleCase(x)).join(", ")}.
+            </li>
+          )}
+          {ev.has_partner && (
+            <li>
+              A ligação pontilhada é societária: a Receita Federal lista a pessoa como sócia da empresa. Como a Receita publica o
+              CPF dos sócios mascarado, a ligação foi feita por nome idêntico e pelos 6 dígitos visíveis do CPF. É um vínculo
+              provável; confira no cadastro do CNPJ.
+            </li>
+          )}
           {ev.has_public && (
             <li>
               Há dinheiro público no ciclo. Vale conferir se o serviço pago com cota, emenda ou verba de gabinete foi prestado e

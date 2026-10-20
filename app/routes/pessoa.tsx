@@ -9,6 +9,7 @@ import {
   alescAccountDetail,
   campaignDetail,
   emendasForPolitician,
+  politicianCompanies,
   one,
   stateDirectPayments,
   fedDetail,
@@ -59,14 +60,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     fedDetail("senado", senadoIds, year),
     emendasForPolitician(politician.id),
   ]);
+  const companies = await politicianCompanies(politician.id);
   const govTerms = candidacies.filter((c) => (c.office === "GOVERNADOR" || c.office === "VICE-GOVERNADOR") && c.elected);
   const cpfRow = govTerms.length ? await one<{ cpf: string | null }>("SELECT cpf FROM politician WHERE id = ?1", politician.id) : null;
   const direct = cpfRow?.cpf ? await stateDirectPayments(cpfRow.cpf) : [];
-  return { politician, candidacies, links, alesc, payments, camara, senado, emendas, govTerms, direct, cmfOffice, staff, perDiems, signals, campaign, camp };
+  return { politician, candidacies, links, alesc, payments, camara, senado, emendas, govTerms, direct, companies, cmfOffice, staff, perDiems, signals, campaign, camp };
 }
 
 export default function Pessoa({ loaderData }: Route.ComponentProps) {
-  const { politician: p, candidacies, links, alesc, payments, camara, senado, emendas, govTerms, direct, cmfOffice, staff, perDiems, signals, campaign, camp } = loaderData;
+  const { politician: p, candidacies, links, alesc, payments, camara, senado, emendas, govTerms, direct, companies, cmfOffice, staff, perDiems, signals, campaign, camp } = loaderData;
   const latest = candidacies[0];
   const elected = candidacies.filter((c) => c.elected);
   const perDiemTotal = perDiems.reduce((s, x) => s + x.paid_cents, 0);
@@ -136,6 +138,48 @@ export default function Pessoa({ loaderData }: Route.ComponentProps) {
           )}
           <FedSection d={senado} />
         </section>
+      )}
+
+      {companies.length > 0 && (
+        <Card
+          title="Aparece como sócio de"
+          subtitle="Quadro de sócios da Receita Federal. Vínculo provável: nome idêntico e os 6 dígitos visíveis do CPF"
+          src={ds("receita", "cnpj")}
+        >
+          <div className="table-wrap -mx-4 sm:-mx-5">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th className="r">Recebeu de dinheiro público</th>
+                  <th className="r">Recebeu de campanhas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((c) => (
+                  <tr key={c.cnpj}>
+                    <td className="min-w-48">
+                      <Link to={`/fornecedor/${c.cnpj}`} className="link">
+                        {titleCase(c.name) || docLabel(c.cnpj)}
+                      </Link>
+                      <div className="text-xs text-ink-3">
+                        {docLabel(c.cnpj)} · {c.role}
+                        {c.entered_at ? ` desde ${dateBr(c.entered_at)}` : ""}
+                        {c.status && c.status !== "ATIVA" ? ` · ${c.status.toLowerCase()}` : ""}
+                      </div>
+                    </td>
+                    <td className="r">{c.public_cents ? brl(c.public_cents) : "–"}</td>
+                    <td className="r">{c.campaign_cents ? brl(c.campaign_cents) : "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-ink-3">
+            “Dinheiro público” soma o que a empresa recebeu da cota parlamentar, de emendas, da ALESC, da Prefeitura, da Câmara de
+            Florianópolis e do Governo de SC, de qualquer político ou órgão, não só desta pessoa.
+          </p>
+        </Card>
       )}
 
       {govTerms.length > 0 && (

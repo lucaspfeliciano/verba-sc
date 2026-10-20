@@ -2,7 +2,7 @@ import { data, Link } from "react-router";
 
 import { SignalList } from "~/components/signals";
 import { Card, Disclaimer, Page, SourceNote, Stat, Stats } from "~/components/ui";
-import { emendasByDoc, fedBySupplier, stateBySupplier, supplierByDoc } from "~/lib/db.server";
+import { companyProfile, emendasByDoc, fedBySupplier, stateBySupplier, supplierByDoc } from "~/lib/db.server";
 import { brl, brlCompact, dateBr, docLabel, ENTITY_LABEL, fedCategory, gabineteHref, int, OFFICE_LABEL, titleCase } from "~/lib/format";
 import type { Route } from "./+types/fornecedor";
 import { ds, src } from "~/lib/sources";
@@ -14,16 +14,22 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
 export async function loader({ params }: Route.LoaderArgs) {
   const doc = params.doc.replace(/\D/g, "");
   if (doc.length !== 14) throw data(null, { status: 404 });
-  const [s, fed, emendas, state] = await Promise.all([supplierByDoc(doc), fedBySupplier(doc), emendasByDoc(doc), stateBySupplier(doc)]);
-  if (!s.name && fed.length === 0 && emendas.length === 0 && state.years.length === 0 && state.contracts.length === 0) {
+  const [s, fed, emendas, state, company] = await Promise.all([
+    supplierByDoc(doc),
+    fedBySupplier(doc),
+    emendasByDoc(doc),
+    stateBySupplier(doc),
+    companyProfile(doc),
+  ]);
+  if (!s.name && !company.registry?.name && fed.length === 0 && emendas.length === 0 && state.years.length === 0 && state.contracts.length === 0) {
     throw data(null, { status: 404 });
   }
-  return { doc, ...s, fed, emendas, state };
+  return { doc, ...s, fed, emendas, state, company };
 }
 
 export default function Fornecedor({ loaderData }: Route.ComponentProps) {
-  const { doc, payee, pncp, donations, services, alesc, signals, fed, emendas, state } = loaderData;
-  const name = loaderData.name ?? fed[0]?.name ?? emendas[0]?.favorecido ?? state.years[0]?.name ?? state.contracts[0]?.name ?? null;
+  const { doc, payee, pncp, donations, services, alesc, signals, fed, emendas, state, company } = loaderData;
+  const name = company.registry?.name ?? loaderData.name ?? fed[0]?.name ?? emendas[0]?.favorecido ?? state.years[0]?.name ?? state.contracts[0]?.name ?? null;
   const sum = (e: number) => payee.filter((p) => p.entity === e).reduce((s, p) => s + p.paid_cents, 0);
   const years = [...new Set(payee.map((p) => p.year))].sort((a, b) => b - a);
   return (
@@ -36,6 +42,72 @@ export default function Fornecedor({ loaderData }: Route.ComponentProps) {
         <Stat label="Cota parlamentar (SC)" value={brlCompact(fed.reduce((s, f) => s + f.cents, 0))} note={fed.length ? "Câmara e Senado" : "sem registros"} />
         <Stat label="Campanhas atendidas" value={int(services.length)} note={donations.length ? `e ${int(donations.length)} doação(ões)` : undefined} />
       </Stats>
+
+      {company.registry?.name && (
+        <Card title="Cadastro na Receita Federal" subtitle={`Consultado em ${dateBr(company.registry.fetched_at)}`} src={ds("receita", "cnpj", doc)}>
+          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Situação", company.registry.status],
+              ["Abertura", dateBr(company.registry.opened_at)],
+              ["Atividade principal", company.registry.cnae],
+              ["Natureza jurídica", company.registry.legal_nature],
+              ["Município", company.registry.city ? `${titleCase(company.registry.city)}/${company.registry.uf}` : null],
+              ["Capital social", company.registry.capital_cents ? brl(company.registry.capital_cents) : null],
+            ]
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k as string}>
+                  <dt className="text-xs uppercase tracking-wide text-ink-3">{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+          </dl>
+          {company.partners.length > 0 && (
+            <div className="mt-5">
+              <h3 className="text-sm font-semibold">Sócios</h3>
+              <ul className="mt-2 divide-y divide-line text-sm">
+                {company.partners.map((pt, i) => (
+                  <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
+                    <span>
+                      {pt.slug ? (
+                        <Link to={`/pessoa/${pt.slug}`} className="link">
+                          {titleCase(pt.name)}
+                        </Link>
+                      ) : (
+                        titleCase(pt.name)
+                      )}{" "}
+                      <span className="text-xs text-ink-3">
+                        {pt.role}
+                        {pt.is_company ? " · empresa" : ""}
+                        {pt.slug ? " · político (vínculo provável)" : ""}
+                      </span>
+                    </span>
+                    <span className="text-xs text-ink-3">{pt.entered_at ? `desde ${dateBr(pt.entered_at)}` : ""}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-ink-3">
+                A Receita publica o CPF dos sócios mascarado. A ligação com políticos usa nome idêntico e os 6 dígitos visíveis
+                do CPF; é um vínculo provável.
+              </p>
+            </div>
+          )}
+          {company.owners.length > 0 && (
+            <div className="mt-5">
+              <h3 className="text-sm font-semibold">Sócia de outras empresas</h3>
+              <ul className="mt-2 space-y-1 text-sm">
+                {company.owners.map((o) => (
+                  <li key={o.cnpj}>
+                    <Link to={`/fornecedor/${o.cnpj}`} className="link">
+                      {titleCase(o.name) || docLabel(o.cnpj)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
 
       {signals.length > 0 && (
         <Card title="Sinais para verificar">

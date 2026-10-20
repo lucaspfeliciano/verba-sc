@@ -79,6 +79,13 @@ export const SOURCES: Record<string, SourceMeta> = {
     legal: "Constituição, art. 166; Lei 12.527/2011.",
     datasets: { emendas: "Emendas parlamentares (arquivo único com todo o histórico)" },
   },
+  receita: {
+    name: "Cadastro Nacional da Pessoa Jurídica (via BrasilAPI)",
+    agency: "Receita Federal do Brasil",
+    home: "https://brasilapi.com.br/docs#tag/CNPJ",
+    legal: "Dados públicos do CNPJ (Lei 12.527/2011); CPF dos sócios publicado mascarado pela própria Receita.",
+    datasets: { cnpj: "Cadastro e quadro de sócios por CNPJ" },
+  },
   estado: {
     name: "Portal de Dados Abertos de Santa Catarina",
     agency: "Secretaria de Estado da Fazenda de SC",

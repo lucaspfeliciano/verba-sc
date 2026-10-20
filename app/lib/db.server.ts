@@ -673,6 +673,52 @@ export async function cycles(opts: { severity?: string; publico?: boolean; todos
 }
 
 // ---------------------------------------------------------------------------
+// Receita Federal: cadastro e sócios
+// ---------------------------------------------------------------------------
+
+export async function companyProfile(cnpj: string) {
+  const [registry, partners, owners] = await Promise.all([
+    one<{ name: string | null; trade_name: string | null; status: string | null; opened_at: string | null; cnae: string | null; city: string | null; uf: string | null; legal_nature: string | null; capital_cents: number | null; fetched_at: string; http_status: number | null; collection_id: number | null }>(
+      "SELECT * FROM company_registry WHERE cnpj = ?1",
+      cnpj,
+    ),
+    all<{ name: string; doc_masked: string | null; role: string | null; entered_at: string | null; is_company: number; root: string | null; slug: string | null }>(
+      `SELECT cp.name, cp.doc_masked, cp.role, cp.entered_at, cp.is_company, cp.root,
+              (SELECT p.slug FROM politician p WHERE cp.is_company = 0 AND p.name_norm = cp.name_norm
+                  AND p.cpf IS NOT NULL AND substr(p.cpf, 4, 6) = cp.doc6 LIMIT 1) AS slug
+         FROM company_partner cp WHERE cp.cnpj = ?1 ORDER BY cp.is_company, cp.name`,
+      cnpj,
+    ),
+    // Empresas das quais esta é sócia (holding).
+    all<{ cnpj: string; name: string | null }>(
+      `SELECT DISTINCT cp.cnpj, r.name FROM company_partner cp LEFT JOIN company_registry r ON r.cnpj = cp.cnpj
+        WHERE cp.is_company = 1 AND cp.root = ?1 AND cp.cnpj <> ?2 LIMIT 20`,
+      cnpj.slice(0, 8),
+      cnpj,
+    ),
+  ]);
+  return { registry, partners, owners };
+}
+
+/** Empresas em que o político aparece como sócio (nome idêntico + 6 dígitos visíveis do CPF). */
+export async function politicianCompanies(politicianId: string) {
+  return all<{ cnpj: string; name: string | null; status: string | null; role: string | null; entered_at: string | null; public_cents: number; campaign_cents: number }>(
+    `SELECT cp.cnpj, r.name, r.status, cp.role, cp.entered_at,
+            (SELECT coalesce(sum(amount_cents), 0) FROM fed_expense WHERE supplier_doc = cp.cnpj)
+          + (SELECT coalesce(sum(amount_cents), 0) FROM emenda_favorecido WHERE doc = cp.cnpj)
+          + (SELECT coalesce(sum(paid_cents), 0) FROM alesc_payment WHERE doc = cp.cnpj)
+          + (SELECT coalesce(sum(paid_cents), 0) FROM epublica_payee_year WHERE doc = cp.cnpj)
+          + (SELECT coalesce(sum(committed_cents), 0) FROM state_payee_year WHERE doc = cp.cnpj) AS public_cents,
+            (SELECT coalesce(sum(amount_cents), 0) FROM campaign_expense WHERE supplier_doc = cp.cnpj) AS campaign_cents
+       FROM politician p JOIN company_partner cp
+         ON cp.is_company = 0 AND cp.name_norm = p.name_norm AND p.cpf IS NOT NULL AND cp.doc6 = substr(p.cpf, 4, 6)
+       LEFT JOIN company_registry r ON r.cnpj = cp.cnpj
+      WHERE p.id = ?1 ORDER BY public_cents DESC`,
+    politicianId,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Pessoas
 // ---------------------------------------------------------------------------
 

@@ -8,6 +8,7 @@ import { ingestAlescPaymentsYear } from "./alesc_payments";
 import { computeCycles } from "./cycles";
 import { computeSignals, relinkMandates } from "./derive";
 import { ingestEmendas } from "./emendas";
+import { ingestReceitaBatch } from "./receita";
 import { ESTADO_FIRST_YEAR, ingestEstadoContratos, ingestEstadoEmpenhosYear } from "./estado";
 import { CAMARA_FIRST_YEAR, SENADO_FIRST_YEAR, ingestCamaraYear, ingestSenadoYear } from "./federal";
 import { ENTITY_CMF, ENTITY_PMF, ingestPayeesYear, ingestPerDiemYear, ingestStaffSnapshot } from "./epublica";
@@ -18,7 +19,7 @@ export interface IngestParams {
   /** Coleta o histórico inteiro em vez de só os anos recentes. */
   backfill?: boolean;
   /** Restringe a execução a estas fontes. */
-  only?: ("alesc" | "pmf" | "cmf" | "pncp" | "camara" | "senado" | "emendas" | "estado" | "derive")[];
+  only?: ("alesc" | "pmf" | "cmf" | "pncp" | "camara" | "senado" | "emendas" | "estado" | "receita" | "derive")[];
   years?: number[];
 }
 
@@ -77,6 +78,11 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
     if (want("estado")) {
       for (const y of years(ESTADO_FIRST_YEAR)) await run(`estado empenhos ${y}`, () => ingestEstadoEmpenhosYear(this.env, y));
       await run("estado contratos", () => ingestEstadoContratos(this.env));
+    }
+    if (want("receita")) {
+      // Quadro de sócios: incremental, em lotes (a API é pública e gratuita; sem pressa).
+      const lots = p.backfill ? 15 : 3;
+      for (let i = 1; i <= lots; i++) await run(`receita lote ${i}`, () => ingestReceitaBatch(this.env, 200));
     }
     if (want("derive")) {
       await run("ligacoes", () => relinkMandates(this.env));

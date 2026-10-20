@@ -20,7 +20,8 @@ const MAX_FANOUT = 400; // nós com mais saídas que isso são "hubs" e não sã
 const MAX_CYCLES = 50_000;
 const MAX_STORED = 3_000;
 
-export type EdgeKind = "doacao" | "campanha" | "cota" | "emenda" | "gabinete";
+// "socio" não é dinheiro: liga a empresa a quem é dono dela (quadro de sócios da Receita).
+export type EdgeKind = "doacao" | "campanha" | "cota" | "emenda" | "gabinete" | "socio";
 const PUBLIC_KINDS = new Set<EdgeKind>(["cota", "emenda", "gabinete"]);
 
 const PARTY = /\b(PARTIDO|DIRECAO|DIRETORIO|COMISSAO PROVISORIA|ORGAO DE DIRECAO|ELEICAO \d{4})\b/;
@@ -118,9 +119,9 @@ export async function computeCycles(env: Env) {
   // --- Identidade: documentos que pertencem a um político (CPF e CNPJs de campanha).
   const { results: idRows } = await db
     .prepare(
-      `SELECT p.id, p.slug, p.ballot_name, p.cpf, c.campaign_cnpj FROM politician p LEFT JOIN candidacy c ON c.politician_id = p.id`,
+      `SELECT p.id, p.slug, p.ballot_name, p.name_norm, p.cpf, c.campaign_cnpj FROM politician p LEFT JOIN candidacy c ON c.politician_id = p.id`,
     )
-    .all<{ id: string; slug: string; ballot_name: string; cpf: string | null; campaign_cnpj: string | null }>();
+    .all<{ id: string; slug: string; ballot_name: string; name_norm: string; cpf: string | null; campaign_cnpj: string | null }>();
   const docToPol = new Map<string, string>();
   const info = new Map<string, NodeInfo>();
   for (const r of idRows) {
@@ -144,7 +145,7 @@ export async function computeCycles(env: Env) {
   const edges = new Map<string, { from: string; to: string; kind: EdgeKind; cents: number }>();
   const intermediaries = new Set<string>();
   const add = (from: string, to: string, kind: EdgeKind, cents: number) => {
-    if (from === to || cents <= 0) return;
+    if (from === to || (cents <= 0 && kind !== "socio")) return;
     const k = `${from}|${to}|${kind}`;
     const e = edges.get(k);
     if (e) e.cents += cents;
@@ -210,6 +211,46 @@ export async function computeCycles(env: Env) {
     .all<{ pid: string; doc: string; name: string | null; cents: number }>();
   for (const r of gab) add(`P:${r.pid}`, nodeOf(r.doc, r.name), "gabinete", r.cents);
 
+  // --- Sócios (Receita): empresa -> pessoa ou holding dona dela. Pessoa física só quando
+  // nome normalizado e os 6 dígitos visíveis do CPF batem com um único participante.
+  const personIndex = new Map<string, Set<string>>();
+  const indexPerson = (nameNorm: string, cpf: string, node: string) => {
+    const k = `${nameNorm}|${cpf.slice(3, 9)}`;
+    if (!personIndex.has(k)) personIndex.set(k, new Set());
+    personIndex.get(k)!.add(node);
+  };
+  for (const r of idRows) if (r.cpf) indexPerson(r.name_norm, r.cpf, `P:${r.id}`);
+  const byRoot = new Map<string, string[]>();
+  for (const [key, n] of info) {
+    if (!n.doc) continue;
+    if (n.doc.length === 11) indexPerson(normalizeName(n.label), n.doc, key);
+    if (n.doc.length === 14) {
+      const root = n.doc.slice(0, 8);
+      if (!byRoot.has(root)) byRoot.set(root, []);
+      byRoot.get(root)!.push(key);
+    }
+  }
+  const { results: partners } = await db
+    .prepare("SELECT cnpj, name_norm, doc6, root, is_company FROM company_partner")
+    .all<{ cnpj: string; name_norm: string; doc6: string | null; root: string | null; is_company: number }>();
+  let partnerLinks = 0;
+  for (const s of partners) {
+    const company = `D:${s.cnpj}`;
+    if (!info.has(company)) continue;
+    if (!s.is_company && s.doc6) {
+      const hits = personIndex.get(`${s.name_norm}|${s.doc6}`);
+      if (hits && hits.size === 1) {
+        add(company, [...hits][0], "socio", 0);
+        partnerLinks++;
+      }
+    } else if (s.is_company && s.root) {
+      for (const holding of (byRoot.get(s.root) ?? []).filter((k) => k !== company).slice(0, 3)) {
+        add(company, holding, "socio", 0);
+        partnerLinks++;
+      }
+    }
+  }
+
   // --- Grafo indexado. Arestas paralelas de tipos diferentes viram uma só para a busca.
   const keys = new Map<string, number>();
   const names: string[] = [];
@@ -252,8 +293,11 @@ export async function computeCycles(env: Env) {
         const p = pair.get(`${v}>${w}`)!;
         return { from: names[v], to: names[w], cents: p.cents, kinds: [...p.kinds.entries()].map(([kind, cents]) => ({ kind, cents })) };
       });
-      const total = steps.reduce((s, e) => s + e.cents, 0);
-      const minEdge = Math.min(...steps.map((e) => e.cents));
+      // Só ligações de dinheiro contam para valores (a de sócio não movimenta dinheiro).
+      const money = steps.filter((e) => e.kinds.some((k) => k.kind !== "socio"));
+      const total = money.reduce((s, e) => s + e.cents, 0);
+      const minEdge = money.length ? Math.min(...money.map((e) => e.cents)) : 0;
+      const hasPartner = steps.some((e) => e.kinds.some((k) => k.kind === "socio"));
       const nodes = cyc.map((v) => info.get(names[v])!);
       const hasParty = nodes.some((n) => n.kind === "partido");
       const hasPublic = steps.some((e) => e.kinds.some((k) => PUBLIC_KINDS.has(k.kind)));
@@ -267,16 +311,23 @@ export async function computeCycles(env: Env) {
           : (cyc.length <= 3 || hasPublic) && minEdge >= 500_000
             ? "high"
             : "medium";
-      return { cyc, steps, total, minEdge, nodes, hasParty, hasPublic, politicians, severity };
+      return { cyc, steps, total, minEdge, nodes, hasParty, hasPublic, hasPartner, politicians, severity, moneySteps: money.length };
     })
-    .filter((c) => c.total >= MIN_CYCLE_CENTS && c.politicians > 0)
+    .filter((c) => c.total >= MIN_CYCLE_CENTS && c.politicians > 0 && c.moneySteps > 0)
     .sort((a, b) => {
       const rank = (c: typeof a) => (c.severity === "high" ? 0 : c.severity === "medium" ? 1 : 2);
       return rank(a) - rank(b) || Number(b.hasPublic) - Number(a.hasPublic) || b.minEdge - a.minEdge || b.total - a.total;
     });
 
   const stored = scored.slice(0, MAX_STORED);
-  const KIND_LABEL: Record<EdgeKind, string> = { doacao: "doação", campanha: "pagamento de campanha", cota: "cota parlamentar", emenda: "emenda", gabinete: "verba de gabinete" };
+  const KIND_LABEL: Record<EdgeKind, string> = {
+    doacao: "doação",
+    campanha: "pagamento de campanha",
+    cota: "cota parlamentar",
+    emenda: "emenda",
+    gabinete: "verba de gabinete",
+    socio: "sócio, vínculo provável",
+  };
   const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const rows: Record<string, unknown>[] = [];
   for (const c of stored) {
@@ -293,11 +344,18 @@ export async function computeCycles(env: Env) {
       severity: c.severity,
       title: `Ciclo de ${nodes.length} participantes: ${nodes.map(label).join(" → ")} → ${label(nodes[0])}`,
       detail:
-        steps.map((s) => `${label(info.get(s.from)!)} → ${label(info.get(s.to)!)}: ${brl(s.cents)} (${s.kinds.map((k) => KIND_LABEL[k.kind]).join(" e ")})`).join("; ") +
+        steps
+          .map((s) =>
+            s.kinds.every((k) => k.kind === "socio")
+              ? `${label(info.get(s.from)!)} tem como sócio ${label(info.get(s.to)!)} (vínculo provável)`
+              : `${label(info.get(s.from)!)} → ${label(info.get(s.to)!)}: ${brl(s.cents)} (${s.kinds.map((k) => KIND_LABEL[k.kind]).join(" e ")})`,
+          )
+          .join("; ") +
         `. Total movimentado: ${brl(c.total)}; no máximo ${brl(c.minEdge)} podem ter dado a volta completa (a menor ligação).` +
         (c.hasParty ? " Envolve partido: repasses entre partido e candidato são comuns e, em geral, legais." : "") +
         (!c.hasParty && c.politicians === c.nodes.length ? " Só candidatos: doações entre colegas de campanha são comuns e, em geral, legais." : "") +
-        (c.hasPublic ? " Envolve dinheiro público (cota, emenda ou verba de gabinete)." : ""),
+        (c.hasPublic ? " Envolve dinheiro público (cota, emenda ou verba de gabinete)." : "") +
+        (c.hasPartner ? " Inclui vínculo societário identificado por nome e parte do CPF (provável, não confirmado)." : ""),
       politician_id: pol?.key.slice(2) ?? null,
       doc: nodes.find((n) => n.doc && n.doc.length === 14)?.doc ?? null,
       amount_cents: c.minEdge,
@@ -308,13 +366,42 @@ export async function computeCycles(env: Env) {
         min_edge_cents: c.minEdge,
         has_party: c.hasParty,
         has_public: c.hasPublic,
+        has_partner: c.hasPartner,
       }),
       created_at: createdAt,
     });
   }
   // Mesmo conjunto de nós pode fechar mais de um ciclo (sentidos diferentes): fica o de maior valor.
+  // Ciclos que só diferem pelo sócio da mesma empresa (vários sócios doaram) viram um só,
+  // citando os demais sócios.
   const seenKeys = new Set<string>();
-  const unique = rows.filter((r) => (seenKeys.has(r.key as string) ? false : (seenKeys.add(r.key as string), true)));
+  const bySignature = new Map<string, Record<string, unknown>>();
+  const unique: Record<string, unknown>[] = [];
+  for (const r of rows) {
+    if (seenKeys.has(r.key as string)) continue;
+    seenKeys.add(r.key as string);
+    const ev = JSON.parse(r.evidence as string) as { nodes: { key: string; label: string }[]; steps: { from: string; to: string; kinds: { kind: string }[] }[] };
+    const partnerOf = new Map<string, string>();
+    for (const st of ev.steps) if (st.kinds.every((k) => k.kind === "socio")) partnerOf.set(st.to, st.from);
+    const signature = ev.nodes.map((n) => (partnerOf.has(n.key) ? `S:${partnerOf.get(n.key)}` : n.key)).sort().join("|");
+    const first = bySignature.get(signature);
+    if (!first) {
+      bySignature.set(signature, r);
+      unique.push(r);
+      continue;
+    }
+    // Já existe um ciclo igual com outro sócio (o primeiro tem gargalo maior, pela ordenação).
+    const extra = ev.nodes.filter((n) => partnerOf.has(n.key)).map((n) => n.label);
+    const fev = JSON.parse(first.evidence as string);
+    fev.other_partners = [...new Set([...(fev.other_partners ?? []), ...extra])];
+    first.evidence = JSON.stringify(fev);
+  }
+  for (const r of unique) {
+    const ev = JSON.parse(r.evidence as string);
+    if (ev.other_partners?.length) {
+      r.detail = `${r.detail} Outros sócios da mesma empresa também doaram: ${ev.other_partners.join(", ")}.`;
+    }
+  }
 
   await db.prepare("DELETE FROM signal WHERE rule = 'ciclo_dinheiro'").run();
   await insertJsonRows(
@@ -335,6 +422,8 @@ export async function computeCycles(env: Env) {
     with_party: scored.filter((c) => c.hasParty).length,
     hubs_skipped: state.hubs,
     intermediaries_removed: intermediaries.size,
+    partner_links: partnerLinks,
+    with_partner: scored.filter((c) => c.hasPartner).length,
     capped: found.length >= MAX_CYCLES,
   };
 }
