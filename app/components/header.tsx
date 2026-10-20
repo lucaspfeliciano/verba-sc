@@ -10,6 +10,7 @@ export const NAV = [
   { to: "/emendas", label: "Emendas", desc: "Emendas parlamentares federais" },
   { to: "/vereadores", label: "Vereadores", desc: "Câmara de Florianópolis" },
   { to: "/prefeitura", label: "Prefeitura", desc: "Prefeitura de Florianópolis" },
+  { to: "/ciclos", label: "Ciclos", desc: "Dinheiro que dá a volta" },
   { to: "/sinais", label: "Sinais", desc: "Coincidências para verificar" },
   { to: "/fontes", label: "Fontes", desc: "De onde vem cada número" },
 ];

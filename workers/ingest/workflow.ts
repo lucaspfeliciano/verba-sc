@@ -5,6 +5,7 @@ import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloud
 
 import { ALESC_FIRST_YEAR, ingestAlescYear } from "./alesc";
 import { ingestAlescPaymentsYear } from "./alesc_payments";
+import { computeCycles } from "./cycles";
 import { computeSignals, relinkMandates } from "./derive";
 import { ingestEmendas } from "./emendas";
 import { ESTADO_FIRST_YEAR, ingestEstadoContratos, ingestEstadoEmpenhosYear } from "./estado";
@@ -80,6 +81,8 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
     if (want("derive")) {
       await run("ligacoes", () => relinkMandates(this.env));
       await run("sinais", () => computeSignals(this.env));
+      // Depois dos sinais: aquela etapa recria a tabela e esta acrescenta os ciclos.
+      await run("ciclos", () => computeCycles(this.env));
     }
     return results;
   }

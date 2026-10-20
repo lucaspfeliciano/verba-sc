@@ -63,6 +63,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
+          { to: "/ciclos", t: "Ciclos de dinheiro", d: "Dinheiro que sai de alguém e, passando por outros, volta para a mesma pessoa." },
           { to: "/governo", t: "Governo do Estado", d: "Gastos do Executivo por órgão, o Gabinete do Governador, a publicidade oficial e os contratos." },
           { to: "/congresso", t: "Congresso", d: "Cota parlamentar dos deputados federais e senadores de SC, com notas fiscais e comparação com o país." },
           { to: "/emendas", t: "Emendas parlamentares", d: "Para onde a bancada de SC mandou recursos da União, e quem recebeu o dinheiro." },

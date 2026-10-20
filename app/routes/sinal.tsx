@@ -1,6 +1,8 @@
 import { data, Link } from "react-router";
 
+import { CycleGraph, EDGE_NAME, KIND_NAME, KindLegend, type CycleNode, type CycleStep } from "~/components/cycle-graph";
 import { KindBadge, ScopeNote } from "~/components/recipients";
+import { Src } from "~/components/analysis";
 import { RULE_HELP, RULE_LABEL } from "~/components/signals";
 import { CATEGORY_HOW, CATEGORY_NATUREZAS, recipientKind } from "~/lib/alesc-map";
 import { BarList, Card, Disclaimer, Page, SeverityBadge, SourceNote, Stat, Stats } from "~/components/ui";
@@ -33,6 +35,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   const ev = JSON.parse(signal.evidence);
   if (signal.rule === "campanha_depois_contrato") {
     return { signal, ev, kind: "campaign" as const, campaign: await campaignToPayeeEvidence(signal, ev) };
+  }
+  if (signal.rule === "ciclo_dinheiro") {
+    return { signal, ev, kind: "ciclo" as const };
   }
   if (signal.rule === "estado_campanha_contrato") {
     return { signal, ev, kind: "estado" as const, estado: await stateCampaignEvidence(signal, ev) };
@@ -86,6 +91,7 @@ export default function Sinal({ loaderData }: Route.ComponentProps) {
       {loaderData.kind === "fedQuota" && <FedQuota ev={loaderData.ev} d={loaderData.fedQuota} />}
       {loaderData.kind === "emenda" && <EmendaCampaign d={loaderData.emenda} />}
       {loaderData.kind === "estado" && <StateCampaign ev={loaderData.ev} d={loaderData.estado} />}
+      {loaderData.kind === "ciclo" && <MoneyCycle ev={loaderData.ev} />}
       {loaderData.kind === "fedOutlier" && <FedOutlier ev={loaderData.ev} d={loaderData.fedOutlier} />}
       {loaderData.kind === "outlier" && <Outlier ev={loaderData.ev} d={loaderData.outlier} recipients={loaderData.recipients} />}
 
@@ -1056,6 +1062,128 @@ function StateCampaign({ ev, d }: { ev: any; d: StateData }) {
               DivulgaCandContas (TSE)
             </a>
             .
+          </li>
+        </ul>
+      </Card>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ciclo de dinheiro
+// ---------------------------------------------------------------------------
+
+const EDGE_SRC: Record<string, string[]> = {
+  doacao: [ds("tse", "receitas")],
+  campanha: [ds("tse", "despesas_contratadas")],
+  cota: [ds("camara", "ceap"), ds("senado", "ceaps")],
+  emenda: [ds("cgu", "emendas")],
+  gabinete: [ds("alesc", "pagamentos")],
+};
+
+function NodeLink({ n }: { n: CycleNode }) {
+  if (n.slug) {
+    return (
+      <Link to={`/pessoa/${n.slug}`} className="link">
+        {n.label}
+      </Link>
+    );
+  }
+  if (n.doc && n.doc.length === 14) {
+    return (
+      <Link to={`/fornecedor/${n.doc}`} className="link">
+        {titleCase(n.label)}
+      </Link>
+    );
+  }
+  return <>{titleCase(n.label)}</>;
+}
+
+function MoneyCycle({ ev }: { ev: { nodes: CycleNode[]; steps: CycleStep[]; total_cents: number; min_edge_cents: number; has_party: boolean; has_public: boolean } }) {
+  const byKey = new Map(ev.nodes.map((n) => [n.key, n]));
+  return (
+    <>
+      <Stats>
+        <Stat label="Participantes" value={int(ev.nodes.length)} note={[...new Set(ev.nodes.map((n) => KIND_NAME[n.kind].toLowerCase()))].join(", ")} />
+        <Stat label="Pode ter dado a volta" value={brl(ev.min_edge_cents)} note="a menor ligação do ciclo" />
+        <Stat label="Total movimentado" value={brl(ev.total_cents)} note="soma de todas as ligações" />
+        <Stat label="Dinheiro público" value={ev.has_public ? "Sim" : "Não"} note={ev.has_public ? "cota, emenda ou verba de gabinete" : "só campanha"} />
+      </Stats>
+
+      <Card title="O ciclo" subtitle="As setas seguem o dinheiro; o valor é a soma de cada ligação em todos os anos disponíveis">
+        <div className="mx-auto max-w-3xl">
+          <CycleGraph nodes={ev.nodes} steps={ev.steps} />
+        </div>
+        <div className="mt-3">
+          <KindLegend />
+        </div>
+      </Card>
+
+      <Card title="Cada ligação" subtitle="No Modo Análise, clique numa linha para ver os arquivos de origem">
+        <div className="table-wrap -mx-4 sm:-mx-5">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>De</th>
+                <th>Para</th>
+                <th>Tipo</th>
+                <th className="r">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ev.steps.map((s, i) => {
+                const from = byKey.get(s.from)!;
+                const to = byKey.get(s.to)!;
+                return (
+                  <Src as="tr" key={i} refs={s.kinds.flatMap((k) => EDGE_SRC[k.kind] ?? [])} label={`${from.label} → ${to.label}`}>
+                    <td className="num text-ink-3">{i + 1}</td>
+                    <td className="min-w-40">
+                      <NodeLink n={from} />
+                      <div className="text-xs text-ink-3">{KIND_NAME[from.kind]}</div>
+                    </td>
+                    <td className="min-w-40">
+                      <NodeLink n={to} />
+                      <div className="text-xs text-ink-3">{KIND_NAME[to.kind]}</div>
+                    </td>
+                    <td className="text-ink-2">
+                      {s.kinds.map((k) => (
+                        <div key={k.kind}>
+                          {EDGE_NAME[k.kind] ?? k.kind}
+                          {s.kinds.length > 1 && <span className="text-xs text-ink-3"> · {brl(k.cents)}</span>}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="r font-medium">{brl(s.cents)}</td>
+                  </Src>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title="Como ler este ciclo">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+          <li>
+            O que pode ter circulado de verdade é no máximo o valor da menor ligação ({brl(ev.min_edge_cents)}). O total soma
+            ligações de tamanhos muito diferentes.
+          </li>
+          <li>
+            As ligações somam todos os anos: uma pode ser de uma eleição e a outra de anos depois. Abra as páginas de cada
+            participante para ver as datas.
+          </li>
+          {ev.has_party && <li>Há partido no ciclo: partidos financiam candidatos e recebem sobras de campanha; isso é comum e legal.</li>}
+          {ev.nodes.every((n) => n.kind === "politico") && <li>Só há candidatos no ciclo: doações entre colegas de chapa são comuns e legais.</li>}
+          {ev.has_public && (
+            <li>
+              Há dinheiro público no ciclo. Vale conferir se o serviço pago com cota, emenda ou verba de gabinete foi prestado e
+              se o fornecedor foi escolhido de forma regular.
+            </li>
+          )}
+          <li>
+            Um padrão que merece atenção: a campanha paga uma pessoa e essa pessoa doa de volta para a mesma campanha ou para
+            um aliado. Pode ser um colaborador que também apoiou financeiramente, ou pode indicar dinheiro que voltou.
           </li>
         </ul>
       </Card>

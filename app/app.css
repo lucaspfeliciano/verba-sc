@@ -18,6 +18,11 @@
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+  /* Tipos de participante nos ciclos (paleta categórica validada, ordem fixa). */
+  --k-politico: #2a78d6;
+  --k-partido: #eb6834;
+  --k-empresa: #1baf7a;
+  --k-pessoa: #eda100;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -33,6 +38,10 @@
     --accent-ink: #86b6ef;
     --bar: #3987e5;
     --bar-track: #232f3d;
+    --k-politico: #3987e5;
+    --k-partido: #d95926;
+    --k-empresa: #199e70;
+    --k-pessoa: #c98500;
   }
 }
 :root[data-theme="dark"] {
@@ -48,6 +57,10 @@
   --accent-ink: #86b6ef;
   --bar: #3987e5;
   --bar-track: #232f3d;
+  --k-politico: #3987e5;
+  --k-partido: #d95926;
+  --k-empresa: #199e70;
+  --k-pessoa: #c98500;
 }
 
 @theme {

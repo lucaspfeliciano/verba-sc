@@ -12,6 +12,7 @@ export const RULE_LABEL: Record<string, string> = {
   cota_gasto_atipico: "Cota atípica",
   emenda_campanha: "Emenda e campanha",
   estado_campanha_contrato: "Governo: campanha → empenhos",
+  ciclo_dinheiro: "Ciclo de dinheiro",
 };
 
 export const RULE_HELP: Record<string, string> = {
@@ -29,6 +30,8 @@ export const RULE_HELP: Record<string, string> = {
     "Empresa, entidade ou pessoa que recebeu dinheiro de emenda parlamentar de um deputado federal ou senador de SC e que também doou para a campanha dele ou prestou serviço a ela. Ligação por CNPJ/CPF.",
   estado_campanha_contrato:
     "Quem prestou serviço ou doou para a campanha do governador ou do vice eleitos e, no mandato seguinte, recebeu empenhos do Governo de SC (ligação por CNPJ/CPF). Compara a média anual antes e depois da eleição quando há dados (os empenhos do Estado começam em 2021).",
+  ciclo_dinheiro:
+    "Dinheiro que sai de alguém e volta para a mesma pessoa passando por até 5 participantes (doações, pagamentos de campanha, cota parlamentar, emendas e verba de gabinete). Detectado com o algoritmo de Tarjan; ciclos acima de R$ 10 mil. Veja a página Ciclos.",
 };
 
 export function SignalList({ rows, showPerson = true }: { rows: SignalRow[]; showPerson?: boolean }) {

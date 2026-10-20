@@ -11,6 +11,7 @@ export default [
   route("prefeitura", "routes/prefeitura.tsx"),
   route("pessoa/:slug", "routes/pessoa.tsx"),
   route("fornecedor/:doc", "routes/fornecedor.tsx"),
+  route("ciclos", "routes/ciclos.tsx"),
   route("sinais", "routes/sinais.tsx"),
   route("sinais/:key", "routes/sinal.tsx"),
   route("busca", "routes/busca.tsx"),

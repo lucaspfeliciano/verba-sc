@@ -618,6 +618,61 @@ export async function stateCampaignEvidence(s: SignalFull, ev: { election: numbe
 }
 
 // ---------------------------------------------------------------------------
+// Ciclos de dinheiro
+// ---------------------------------------------------------------------------
+
+export async function cycleStats() {
+  const r = await one<{ summary: string; finished_at: string }>(
+    "SELECT summary, finished_at FROM ingest_run WHERE step = 'ciclos' AND ok = 1 ORDER BY id DESC LIMIT 1",
+  );
+  if (!r) return null;
+  try {
+    const j = JSON.parse(r.summary) as Partial<Record<"nodes" | "edges" | "sccs" | "largest_scc" | "cycles_found" | "cycles_over_threshold" | "with_public_money", number>>;
+    return {
+      nodes: j.nodes ?? 0,
+      edges: j.edges ?? 0,
+      sccs: j.sccs ?? 0,
+      largest_scc: j.largest_scc ?? 0,
+      cycles_found: j.cycles_found ?? 0,
+      cycles_over_threshold: j.cycles_over_threshold ?? 0,
+      with_public_money: j.with_public_money ?? 0,
+      finished_at: r.finished_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function cycles(opts: { severity?: string; publico?: boolean; todos?: boolean; slug?: string; page: number }) {
+  const where = ["s.rule = 'ciclo_dinheiro'"];
+  const params: unknown[] = [];
+  if (opts.severity) {
+    params.push(opts.severity);
+    where.push(`s.severity = ?${params.length}`);
+  } else if (!opts.todos) where.push("s.severity <> 'low'");
+  if (opts.publico) where.push("json_extract(s.evidence, '$.has_public') = 1");
+  if (opts.slug) {
+    params.push(`%"slug":"${opts.slug.replace(/[^a-z0-9-]/g, "")}"%`);
+    where.push(`s.evidence LIKE ?${params.length}`);
+  }
+  const w = where.join(" AND ");
+  const [total, rows, counts] = await Promise.all([
+    one<{ n: number }>(`SELECT count(*) AS n FROM signal s WHERE ${w}`, ...params),
+    all<{ key: string; severity: string; title: string; detail: string; amount_cents: number; evidence: string }>(
+      `SELECT s.key, s.severity, s.title, s.detail, s.amount_cents, s.evidence FROM signal s WHERE ${w}
+        ORDER BY CASE s.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, s.amount_cents DESC
+        LIMIT 24 OFFSET ${(opts.page - 1) * 24}`,
+      ...params,
+    ),
+    all<{ severity: string; n: number; publico: number }>(
+      `SELECT severity, count(*) AS n, sum(json_extract(evidence, '$.has_public') = 1) AS publico
+         FROM signal WHERE rule = 'ciclo_dinheiro' GROUP BY severity`,
+    ),
+  ]);
+  return { total: total?.n ?? 0, rows, counts };
+}
+
+// ---------------------------------------------------------------------------
 // Pessoas
 // ---------------------------------------------------------------------------
 
