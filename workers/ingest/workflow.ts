@@ -81,7 +81,8 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
     }
     if (want("receita")) {
       // Quadro de sócios: incremental, em lotes (a API é pública e gratuita; sem pressa).
-      const lots = p.backfill ? 15 : 3;
+      // ~1.600 CNPJs por dia: a fila inicial (~20 mil) termina em cerca de duas semanas.
+      const lots = p.backfill ? 15 : 8;
       for (let i = 1; i <= lots; i++) await run(`receita lote ${i}`, () => ingestReceitaBatch(this.env, 200));
     }
     if (want("derive")) {
