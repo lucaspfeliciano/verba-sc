@@ -1,0 +1,39 @@
+# Atualiza o recorte SC/Florianópolis do TSE no D1.
+# Os arquivos do TSE passam de 1 GB e não cabem num Worker; aqui o pipeline lê
+# só os CSVs de SC (via HTTP Range) e carrega o SQL gerado no D1.
+#
+# Segredos necessários no repositório:
+#   CLOUDFLARE_API_TOKEN  (permissão D1:Edit)
+#   CLOUDFLARE_ACCOUNT_ID
+name: TSE -> D1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 1 * *" # dia 1 de cada mês
+
+jobs:
+  tse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: python -I pipeline/tse_sc.py --out dados/tse.sql
+      - run: npx wrangler d1 execute verba-sc --remote --file dados/tse.sql --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Recalcula ligações e sinais com as pessoas novas.
+      - run: |
+          curl -sS -X POST "$SITE/admin/ingest" -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" -d '{"only":["derive"]}'
+        env:
+          SITE: https://verba-sc.lucaspfeliciano.workers.dev
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}

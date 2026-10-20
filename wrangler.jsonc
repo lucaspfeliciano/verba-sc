@@ -1,0 +1,47 @@
+/**
+ * Configuração do Worker. Referência:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "verba-sc",
+	"compatibility_date": "2026-10-19",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "./workers/app.ts",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	// Executa o Worker perto do D1: as páginas fazem várias consultas em sequência.
+	"placement": { "mode": "smart" },
+	// O arquivo da cota da Câmara (~75 MB descompactado) é processado numa etapa só.
+	"limits": { "cpu_ms": 300000 },
+	"vars": {
+		"SITE_NAME": "Verba SC"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "verba-sc",
+			"database_id": "baa7d5da-e65b-4705-b9da-291badd44828",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			// Cópia bruta de cada arquivo oficial baixado (proveniência verificável).
+			"binding": "RAW",
+			"bucket_name": "verba-sc-raw"
+		}
+	],
+	"workflows": [
+		{
+			"binding": "INGEST",
+			"name": "verba-sc-ingest",
+			"class_name": "IngestWorkflow",
+			// Todo dia às 06:00 UTC (03:00 em Florianópolis).
+			"schedules": "0 6 * * *"
+		}
+	]
+	// Segredo ADMIN_TOKEN (wrangler secret put ADMIN_TOKEN) protege /admin/*.
+}
